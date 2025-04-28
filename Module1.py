@@ -144,13 +144,19 @@ with tab2:
     bore_dia_mod2 = st.number_input("Enter Bore Diameter for Tolerance Calculation (mm)", min_value=0.0, step=0.01, value=280.0)
     tolerance_class_mod2 = st.selectbox("Select Tolerance Class", ["Normal", "P6", "P5"])
     
-    if st.button("Calculate Tolerances"):
+    if st.button("Calculate Tolerances and Bore Dimensions"):
         upper_dev, lower_dev = find_tolerance(bore_dia_mod2, tolerance_class_mod2)
         
         if upper_dev is not None and lower_dev is not None:
-            st.success("✅ Tolerance Found:")
+            # Calculate Max and Min Bore
+            max_bore = bore_dia_mod2 + (upper_dev / 1000)  # µm to mm
+            min_bore = bore_dia_mod2 + (lower_dev / 1000)
+            
+            st.success("✅ Tolerance and Dimensions Found:")
             st.write(f"**Upper Deviation:** +{upper_dev} µm")
             st.write(f"**Lower Deviation:** {lower_dev} µm")
+            st.write(f"**Maximum Bore Diameter:** {max_bore:.3f} mm")
+            st.write(f"**Minimum Bore Diameter:** {min_bore:.3f} mm")
         else:
-            st.error("⚠️ Bore diameter out of standard SKF tables. Please verify input.")
+            st.error("⚠️ Bore diameter not found in the selected tolerance class table. Please verify input.")
 
