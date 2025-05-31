@@ -29,7 +29,7 @@ def suggest_material_and_treatment_module3(roller_dia, wall_thickness, load_type
         return "GCr15SiMn", "Martensitic Quenching"
 
 # ----------------------------
-# Module 4: Roller Profile Tolerance Table
+# Module 4: Roller Profile Matching
 # ----------------------------
 roller_profile_df = pd.DataFrame([
     {"Profile Type": "Logarithmic", "Min Dia (mm)": 20, "Max Dia (mm)": 40, "Max Deviation (µm)": 3.0},
@@ -40,31 +40,13 @@ roller_profile_df = pd.DataFrame([
 ])
 
 def get_max_deviation(profile_type, diameter):
-    df = roller_profile_df
-    for _, row in df.iterrows():
+    for _, row in roller_profile_df.iterrows():
         if row['Profile Type'].lower() == profile_type.lower() and row['Min Dia (mm)'] <= diameter <= row['Max Dia (mm)']:
             return row['Max Deviation (µm)']
     return None
 
 # ----------------------------
-# Module 5: Clearance Class Checker
-# ----------------------------
-def suggest_clearance(bore_diameter, mill_type=None):
-    if mill_type == "hot mill":
-        return "C4"
-    elif mill_type == "cold mill":
-        return "C3"
-    elif bore_diameter <= 120:
-        return "C2 or Normal"
-    elif bore_diameter <= 250:
-        return "Normal or C3"
-    elif bore_diameter <= 500:
-        return "C3 or C4"
-    else:
-        return "C4 or C5"
-
-# ----------------------------
-# Load Tolerance Data – Module 2
+# Module 2: Load Tolerance Tables
 # ----------------------------
 @st.cache_data
 def load_tolerance_tables():
@@ -91,14 +73,14 @@ def find_tolerance(bore_diameter, tolerance_class):
     return None, None
 
 # ----------------------------
-# Tabs
+# App Tabs for All 5 Modules
 # ----------------------------
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Module 1 – Smart Specification Selector", 
     "Module 2 – Tolerance & Fit Calculator",
     "Module 3 – Roller Profile Matching",
-    "Module 4 – Clearance Class Checker",
-    "Module 5 – Material & Heat Treatment Selector"
+    "Module 4 – Material & Heat Treatment Selector",
+    "Module 5 – Clearance Class Checker"
 ])
 
 # ----------------------------
@@ -118,6 +100,20 @@ with tab1:
     def suggest_bearing_class(application_type):
         return "P5" if application_type == "precision" else "P6"
 
+    def suggest_clearance(bore_diameter, mill_type=None):
+        if mill_type == "hot mill":
+            return "C4"
+        elif mill_type == "cold mill":
+            return "C3"
+        elif bore_diameter <= 120:
+            return "C2 or Normal"
+        elif bore_diameter <= 250:
+            return "Normal or C3"
+        elif bore_diameter <= 500:
+            return "C3 or C4"
+        else:
+            return "C4 or C5"
+
     def suggest_cage_type(application_type, speed_rpm):
         if application_type == "high load":
             return ("Pin-Type", "Steel")
@@ -130,7 +126,6 @@ with tab1:
 
     if st.button("Generate Specification Recommendation"):
         st.subheader("✅ Specification Recommendation")
-
         bearing_class = suggest_bearing_class(application_type)
         clearance = suggest_clearance(bore_diameter, mill_type)
         steel, heat_treatment = suggest_material_and_treatment_module3(roller_diameter, wall_thickness, load_type)
@@ -144,70 +139,59 @@ with tab1:
         st.success("Module 1 recommendations generated successfully!")
 
 # ----------------------------
-# Module 2
+# Module 2 – Tolerance Calculator
 # ----------------------------
 with tab2:
     st.header("📏 Module 2: Tolerance & Fit Calculator")
-
-    bore_dia_mod2 = st.number_input("Enter Bore Diameter for Tolerance Calculation (mm)", min_value=0.0, step=0.01, value=280.0)
+    bore_dia_mod2 = st.number_input("Enter Bore Diameter (mm)", min_value=0.0, step=0.01, value=280.0)
     tolerance_class_mod2 = st.selectbox("Select Tolerance Class", ["Normal", "P6", "P5"])
-
     if st.button("Calculate Tolerances and Bore Dimensions"):
         upper_dev, lower_dev = find_tolerance(bore_dia_mod2, tolerance_class_mod2)
-
         if upper_dev is not None and lower_dev is not None:
             max_bore = bore_dia_mod2 + (upper_dev / 1000)
             min_bore = bore_dia_mod2 + (lower_dev / 1000)
-
             st.subheader("Output Results")
-            st.success("✅ Tolerance and Dimensions Found:")
             st.write(f"**Upper Deviation:** +{upper_dev} µm")
             st.write(f"**Lower Deviation:** {lower_dev} µm")
             st.write(f"**Maximum Bore Diameter:** {max_bore:.3f} mm")
             st.write(f"**Minimum Bore Diameter:** {min_bore:.3f} mm")
-            st.caption("Tolerances and dimensions based on SKF ISO 492 standard.")
         else:
-            st.error("⚠️ Bore diameter not found in the selected tolerance class table. Please verify input.")
+            st.error("Bore diameter not found in the selected tolerance class table.")
 
 # ----------------------------
 # Module 3 – Roller Profile Matching
 # ----------------------------
 with tab3:
     st.header("📊 Module 3: Roller Profile Matching")
-
-    profile_type = st.selectbox("Select Roller Profile Type", ["Logarithmic", "Crowned", "Flat"])
+    profile_type = st.selectbox("Roller Profile Type", ["Logarithmic", "Crowned", "Flat"])
     roller_dia_input = st.number_input("Enter Roller Diameter (mm)", min_value=0.0, step=0.1, value=40.0)
-
     if st.button("Check Profile Tolerance"):
         max_dev = get_max_deviation(profile_type, roller_dia_input)
         if max_dev is not None:
-            st.success(f"For a {profile_type} profile with diameter {roller_dia_input} mm, the maximum deviation allowed is {max_dev} µm.")
+            st.success(f"Max allowed deviation: {max_dev} µm")
         else:
-            st.error("No tolerance data found for the selected profile and diameter.")
+            st.error("No data for selected profile and diameter.")
 
 # ----------------------------
-# Module 4 – Clearance Class Checker
+# Module 4 – Material & Heat Treatment Selector
 # ----------------------------
 with tab4:
-    st.header("📐 Module 4: Clearance Class Checker")
-    bore_for_clearance = st.number_input("Enter Bore Diameter (mm) for Clearance Check", value=250)
-    mill_type_clear = st.selectbox("Mill Type", [None, "hot mill", "cold mill"])
-
-    if st.button("Check Clearance Class"):
-        result_clearance = suggest_clearance(bore_for_clearance, mill_type_clear)
-        st.success(f"Recommended Clearance Class: {result_clearance}")
+    st.header("🔥 Module 4: Material & Heat Treatment Selector")
+    roller_dia_4 = st.number_input("Roller Diameter (mm)", min_value=0.0, step=0.1, value=35.0)
+    wall_thickness_4 = st.number_input("Wall Thickness (mm)", min_value=0.0, step=0.1, value=20.0)
+    load_type_4 = st.selectbox("Load Type", ["standard", "impact"])
+    if st.button("Get Material & Treatment"):
+        steel, treatment = suggest_material_and_treatment_module3(roller_dia_4, wall_thickness_4, load_type_4)
+        st.write(f"**Recommended Steel:** {steel}")
+        st.write(f"**Heat Treatment:** {treatment}")
 
 # ----------------------------
-# Module 5 – Material & Heat Treatment Selector
+# Module 5 – Clearance Class Checker
 # ----------------------------
 with tab5:
-    st.header("🧪 Module 5: Material & Heat Treatment Selector")
-
-    wall_thick_m5 = st.number_input("Wall Thickness (mm)", value=20)
-    roller_dia_m5 = st.number_input("Roller Diameter (mm)", value=35)
-    load_type_m5 = st.selectbox("Load Type", ["standard", "impact"])
-
-    if st.button("Check Material Recommendation"):
-        mat_m5, ht_m5 = suggest_material_and_treatment_module3(roller_dia_m5, wall_thick_m5, load_type_m5)
-        st.success(f"Recommended Steel: {mat_m5}")
-        st.info(f"Recommended Heat Treatment: {ht_m5}")
+    st.header("📐 Module 5: Clearance Class Checker")
+    bore_dia_5 = st.number_input("Enter Bore Diameter (mm)", min_value=0.0, step=0.1, value=250.0)
+    mill_type_5 = st.selectbox("Mill Type", [None, "hot mill", "cold mill"])
+    if st.button("Check Clearance Class"):
+        clearance = suggest_clearance(bore_dia_5, mill_type_5)
+        st.write(f"**Recommended Clearance Class:** {clearance}")
