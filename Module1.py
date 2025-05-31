@@ -29,6 +29,24 @@ def suggest_material_and_treatment_module3(roller_dia, wall_thickness, load_type
         return "GCr15SiMn", "Martensitic Quenching"
 
 # ----------------------------
+# Module 4: Roller Profile Tolerance Table
+# ----------------------------
+roller_profile_df = pd.DataFrame([
+    {"Profile Type": "Logarithmic", "Min Dia (mm)": 20, "Max Dia (mm)": 40, "Max Deviation (µm)": 3.0},
+    {"Profile Type": "Logarithmic", "Min Dia (mm)": 40, "Max Dia (mm)": 60, "Max Deviation (µm)": 4.0},
+    {"Profile Type": "Crowned",     "Min Dia (mm)": 20, "Max Dia (mm)": 40, "Max Deviation (µm)": 2.0},
+    {"Profile Type": "Crowned",     "Min Dia (mm)": 40, "Max Dia (mm)": 60, "Max Deviation (µm)": 3.0},
+    {"Profile Type": "Flat",        "Min Dia (mm)": 20, "Max Dia (mm)": 60, "Max Deviation (µm)": 1.0},
+])
+
+def get_max_deviation(profile_type, diameter):
+    df = roller_profile_df
+    for _, row in df.iterrows():
+        if row['Profile Type'].lower() == profile_type.lower() and row['Min Dia (mm)'] <= diameter <= row['Max Dia (mm)']:
+            return row['Max Deviation (µm)']
+    return None
+
+# ----------------------------
 # Load Tolerance Data – Module 2
 # ----------------------------
 @st.cache_data
@@ -56,20 +74,23 @@ def find_tolerance(bore_diameter, tolerance_class):
     return None, None
 
 # ----------------------------
-# Tabs for Module 1 and Module 2
+# Tabs for Module 1, Module 2, and Module 3
 # ----------------------------
-tab1, tab2 = st.tabs(["Module 1 – Smart Specification Selector", "Module 2 – Tolerance & Fit Calculator"])
+tab1, tab2, tab3 = st.tabs([
+    "Module 1 – Smart Specification Selector", 
+    "Module 2 – Tolerance & Fit Calculator",
+    "Module 3 – Roller Profile Matching"
+])
 
 # ----------------------------
-# Module 1 – Smart Specification Selector
+# Module 1
 # ----------------------------
 with tab1:
     st.header("🔧 Module 1: Smart Specification Selector")
-    
     bore_diameter = st.number_input("Bore Diameter (mm)", value=250)
     wall_thickness = st.number_input("Effective Wall Thickness (mm)", value=20)
     roller_diameter = st.number_input("Roller Diameter (mm)", value=35)
-    
+
     application_type = st.selectbox("Application Type", ["standard", "precision", "high load"])
     speed_rpm = st.number_input("Operating Speed (RPM)", value=300)
     mill_type = st.selectbox("Mill Type (optional)", [None, "hot mill", "cold mill"])
@@ -117,51 +138,22 @@ with tab1:
         st.write(f"**Cage Type & Material:** {cage_type} ({cage_material})")
         st.success("Module 1 recommendations generated successfully!")
 
-        doc = Document()
-        doc.add_heading('ABS Bearing Design Report', level=1)
-        doc.add_paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        doc.add_heading('Module 1 – Smart Specification Selector', level=2)
-        doc.add_paragraph(f"Bore Diameter: {bore_diameter} mm")
-        doc.add_paragraph(f"Bearing Class: {bearing_class}")
-        doc.add_paragraph(f"Clearance Class: {clearance}")
-        doc.add_paragraph(f"Steel Type: {steel}")
-        doc.add_paragraph(f"Heat Treatment: {heat_treatment}")
-        doc.add_paragraph(f"Cage Type: {cage_type}")
-        doc.add_paragraph(f"Cage Material: {cage_material}")
-
-        buffer = io.BytesIO()
-        doc.save(buffer)
-        buffer.seek(0)
-
-        st.download_button(
-            label="📄 Download Report (DOCX)",
-            data=buffer,
-            file_name="ABS_Bearing_Design_Report_Module1.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
-
 # ----------------------------
-# Module 2 – Tolerance & Fit Calculator
+# Module 2
 # ----------------------------
 with tab2:
     st.header("📏 Module 2: Tolerance & Fit Calculator")
-    
-    st.subheader("Input Parameters")
-    bore_dia_mod2 = st.number_input(
-        "Enter Bore Diameter for Tolerance Calculation (mm)", 
-        min_value=0.0, 
-        step=0.01, 
-        value=280.0
-    )
+
+    bore_dia_mod2 = st.number_input("Enter Bore Diameter for Tolerance Calculation (mm)", min_value=0.0, step=0.01, value=280.0)
     tolerance_class_mod2 = st.selectbox("Select Tolerance Class", ["Normal", "P6", "P5"])
-    
+
     if st.button("Calculate Tolerances and Bore Dimensions"):
         upper_dev, lower_dev = find_tolerance(bore_dia_mod2, tolerance_class_mod2)
-        
+
         if upper_dev is not None and lower_dev is not None:
             max_bore = bore_dia_mod2 + (upper_dev / 1000)
             min_bore = bore_dia_mod2 + (lower_dev / 1000)
-            
+
             st.subheader("Output Results")
             st.success("✅ Tolerance and Dimensions Found:")
             st.write(f"**Upper Deviation:** +{upper_dev} µm")
@@ -171,3 +163,19 @@ with tab2:
             st.caption("Tolerances and dimensions based on SKF ISO 492 standard.")
         else:
             st.error("⚠️ Bore diameter not found in the selected tolerance class table. Please verify input.")
+
+# ----------------------------
+# Module 3 (was 4) – Roller Profile Matching
+# ----------------------------
+with tab3:
+    st.header("📊 Module 3: Roller Profile Matching")
+
+    profile_type = st.selectbox("Select Roller Profile Type", ["Logarithmic", "Crowned", "Flat"])
+    roller_dia_input = st.number_input("Enter Roller Diameter (mm)", min_value=0.0, step=0.1, value=40.0)
+
+    if st.button("Check Profile Tolerance"):
+        max_dev = get_max_deviation(profile_type, roller_dia_input)
+        if max_dev is not None:
+            st.success(f"For a {profile_type} profile with diameter {roller_dia_input} mm, the maximum deviation allowed is {max_dev} µm.")
+        else:
+            st.error("No tolerance data found for the selected profile and diameter.")
