@@ -86,14 +86,15 @@ def suggest_clearance(bore_dia, mill_type=None):
         return "C4 or C5"
 
 # ----------------------------
-# Tabs for Modules 1 to 5
+# Tabs for Modules 1 to 6
 # ----------------------------
 tabs = st.tabs([
     "Smart Specification Selector", 
     "Tolerance & Fit Calculator",
     "Roller Profile Matching",
     "Material & Heat Treatment Selector",
-    "Clearance Class Checker"
+    "Clearance Class Checker",
+    "Final Compliance Validator"
 ])
 
 # ----------------------------
@@ -184,3 +185,35 @@ with tabs[4]:
     if st.button("Check Clearance", key="btn_mod5"):
         cc5 = suggest_clearance(bd5, mt5)
         st.success(f"✅ Recommended Clearance Class: {cc5}")
+
+# ----------------------------
+# Module 6 – Final Compliance Validator
+# ----------------------------
+with tabs[5]:
+    st.header("✅ Module 6: Final Compliance Validator")
+
+    st.markdown("Enter values you have selected manually to check for consistency with ABS logic.")
+    fcv_bore = st.number_input("Bore Diameter (mm)", value=250.0, key="fcv_bore")
+    fcv_rpm = st.number_input("Operating Speed (RPM)", value=500, key="fcv_rpm")
+    fcv_class = st.selectbox("Selected Bearing Class", ["P5", "P6"], key="fcv_class")
+    fcv_clearance = st.selectbox("Selected Clearance", ["C2", "Normal", "C3", "C4", "C5"], key="fcv_clearance")
+    fcv_profile = st.selectbox("Selected Roller Profile", ["Logarithmic", "Crowned", "Flat"], key="fcv_profile")
+
+    if st.button("Validate Compliance", key="btn_mod6"):
+        issues = []
+
+        if fcv_class == "P5" and fcv_rpm < 500:
+            issues.append("P5 is usually recommended for high-speed or precision applications.")
+
+        if fcv_clearance == "C2" and fcv_bore > 120:
+            issues.append("C2 clearance is typically used for small bores.")
+
+        if fcv_profile == "Flat" and fcv_bore > 60:
+            issues.append("Flat profiles are generally used for low-load, smaller rollers.")
+
+        if not issues:
+            st.success("✅ No compliance issues found.")
+        else:
+            st.error("⚠️ Compliance issues found:")
+            for i in issues:
+                st.write(f"- {i}")
