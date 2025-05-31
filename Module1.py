@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 import io
 
-st.set_page_config(page_title="ABS Bearing Design Tool", layout="centered")
+st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
 st.title("🛠️ ABS Bearing Design Automation Tool")
 st.markdown("This tool assists in selecting bearing specifications and calculating tolerance deviations based on ABS internal standards.")
 
@@ -29,7 +29,7 @@ def suggest_material_and_treatment_module3(roller_dia, wall_thickness, load_type
         return "GCr15SiMn", "Martensitic Quenching"
 
 # ----------------------------
-# Module 4: Roller Profile Matching
+# Module 4: Roller Profile Table
 # ----------------------------
 roller_profile_df = pd.DataFrame([
     {"Profile Type": "Logarithmic", "Min Dia (mm)": 20, "Max Dia (mm)": 40, "Max Deviation (µm)": 3.0},
@@ -40,7 +40,8 @@ roller_profile_df = pd.DataFrame([
 ])
 
 def get_max_deviation(profile_type, diameter):
-    for _, row in roller_profile_df.iterrows():
+    df = roller_profile_df
+    for _, row in df.iterrows():
         if row['Profile Type'].lower() == profile_type.lower() and row['Min Dia (mm)'] <= diameter <= row['Max Dia (mm)']:
             return row['Max Deviation (µm)']
     return None
@@ -56,26 +57,38 @@ def load_tolerance_tables():
     return df_normal, df_p6, df_p5
 
 df_normal, df_p6, df_p5 = load_tolerance_tables()
+class_tables = {"Normal": df_normal, "P6": df_p6, "P5": df_p5}
 
-class_tables = {
-    'Normal': df_normal,
-    'P6': df_p6,
-    'P5': df_p5
-}
-
-def find_tolerance(bore_diameter, tolerance_class):
+def find_tolerance(bore_dia, tolerance_class):
     df = class_tables.get(tolerance_class)
     if df is None:
         return None, None
     for _, row in df.iterrows():
-        if row['Min Diameter (mm)'] < bore_diameter <= row['Max Diameter (mm)']:
+        if row['Min Diameter (mm)'] < bore_dia <= row['Max Diameter (mm)']:
             return row['Upper Deviation (µm)'], row['Lower Deviation (µm)']
     return None, None
 
 # ----------------------------
-# App Tabs for All 5 Modules
+# Module 5: Clearance Class Checker
 # ----------------------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+def suggest_clearance(bore_dia, mill_type=None):
+    if mill_type == "hot mill":
+        return "C4"
+    elif mill_type == "cold mill":
+        return "C3"
+    elif bore_dia <= 120:
+        return "C2 or Normal"
+    elif bore_dia <= 250:
+        return "Normal or C3"
+    elif bore_dia <= 500:
+        return "C3 or C4"
+    else:
+        return "C4 or C5"
+
+# ----------------------------
+# Tabs for Modules 1 to 5
+# ----------------------------
+tabs = st.tabs([
     "Module 1 – Smart Specification Selector", 
     "Module 2 – Tolerance & Fit Calculator",
     "Module 3 – Roller Profile Matching",
@@ -84,114 +97,90 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 ])
 
 # ----------------------------
-# Module 1
+# Module 1 – Spec Selector
 # ----------------------------
-with tab1:
+with tabs[0]:
     st.header("🔧 Module 1: Smart Specification Selector")
-    bore_diameter = st.number_input("Bore Diameter (mm)", value=250)
-    wall_thickness = st.number_input("Effective Wall Thickness (mm)", value=20)
-    roller_diameter = st.number_input("Roller Diameter (mm)", value=35)
+    bore = st.number_input("Bore Diameter (mm)", value=250, key="mod1_bore")
+    wall = st.number_input("Wall Thickness (mm)", value=20, key="mod1_wall")
+    roller = st.number_input("Roller Diameter (mm)", value=35, key="mod1_roller")
+    app = st.selectbox("Application Type", ["standard", "precision", "high load"], key="mod1_app")
+    rpm = st.number_input("Operating Speed (RPM)", value=300, key="mod1_rpm")
+    mill = st.selectbox("Mill Type (optional)", [None, "hot mill", "cold mill"], key="mod1_mill")
+    load = st.selectbox("Load Type", ["standard", "impact"], key="mod1_load")
 
-    application_type = st.selectbox("Application Type", ["standard", "precision", "high load"])
-    speed_rpm = st.number_input("Operating Speed (RPM)", value=300)
-    mill_type = st.selectbox("Mill Type (optional)", [None, "hot mill", "cold mill"])
-    load_type = st.selectbox("Load Type", ["standard", "impact"])
+    def bearing_class(app_type): return "P5" if app_type == "precision" else "P6"
 
-    def suggest_bearing_class(application_type):
-        return "P5" if application_type == "precision" else "P6"
-
-    def suggest_clearance(bore_diameter, mill_type=None):
-        if mill_type == "hot mill":
-            return "C4"
-        elif mill_type == "cold mill":
-            return "C3"
-        elif bore_diameter <= 120:
-            return "C2 or Normal"
-        elif bore_diameter <= 250:
-            return "Normal or C3"
-        elif bore_diameter <= 500:
-            return "C3 or C4"
-        else:
-            return "C4 or C5"
-
-    def suggest_cage_type(application_type, speed_rpm):
-        if application_type == "high load":
-            return ("Pin-Type", "Steel")
-        elif application_type == "standard" and speed_rpm > 1000:
-            return ("Polymer", "Nylon/PTFE")
-        elif application_type == "standard" and speed_rpm <= 1000:
-            return ("Riveted", "Steel, Mass")
-        else:
-            return ("Machined", "Steel, Mass")
+    def cage(app_type, rpm_val):
+        if app_type == "high load": return "Pin-Type", "Steel"
+        elif app_type == "standard" and rpm_val > 1000: return "Polymer", "Nylon/PTFE"
+        elif app_type == "standard": return "Riveted", "Steel, Mass"
+        else: return "Machined", "Steel, Mass"
 
     if st.button("Generate Specification Recommendation"):
-        st.subheader("✅ Specification Recommendation")
-        bearing_class = suggest_bearing_class(application_type)
-        clearance = suggest_clearance(bore_diameter, mill_type)
-        steel, heat_treatment = suggest_material_and_treatment_module3(roller_diameter, wall_thickness, load_type)
-        cage_type, cage_material = suggest_cage_type(application_type, speed_rpm)
-
-        st.write(f"**Bearing Class:** {bearing_class}")
-        st.write(f"**Clearance Class:** {clearance}")
+        bc = bearing_class(app)
+        cc = suggest_clearance(bore, mill)
+        steel, ht = suggest_material_and_treatment_module3(roller, wall, load)
+        ct, cm = cage(app, rpm)
+        st.write(f"**Bearing Class:** {bc}")
+        st.write(f"**Clearance Class:** {cc}")
         st.write(f"**Steel Type:** {steel}")
-        st.write(f"**Heat Treatment:** {heat_treatment}")
-        st.write(f"**Cage Type & Material:** {cage_type} ({cage_material})")
-        st.success("Module 1 recommendations generated successfully!")
+        st.write(f"**Heat Treatment:** {ht}")
+        st.write(f"**Cage Type & Material:** {ct} ({cm})")
+        st.success("✅ Recommendation generated.")
 
 # ----------------------------
-# Module 2 – Tolerance Calculator
+# Module 2 – Tolerance & Fit
 # ----------------------------
-with tab2:
+with tabs[1]:
     st.header("📏 Module 2: Tolerance & Fit Calculator")
-    bore_dia_mod2 = st.number_input("Enter Bore Diameter (mm)", min_value=0.0, step=0.01, value=280.0)
-    tolerance_class_mod2 = st.selectbox("Select Tolerance Class", ["Normal", "P6", "P5"])
-    if st.button("Calculate Tolerances and Bore Dimensions"):
-        upper_dev, lower_dev = find_tolerance(bore_dia_mod2, tolerance_class_mod2)
-        if upper_dev is not None and lower_dev is not None:
-            max_bore = bore_dia_mod2 + (upper_dev / 1000)
-            min_bore = bore_dia_mod2 + (lower_dev / 1000)
-            st.subheader("Output Results")
-            st.write(f"**Upper Deviation:** +{upper_dev} µm")
-            st.write(f"**Lower Deviation:** {lower_dev} µm")
-            st.write(f"**Maximum Bore Diameter:** {max_bore:.3f} mm")
-            st.write(f"**Minimum Bore Diameter:** {min_bore:.3f} mm")
+    dia2 = st.number_input("Enter Bore Diameter (mm)", value=280.0, key="mod2_dia")
+    tol_class = st.selectbox("Tolerance Class", ["Normal", "P6", "P5"], key="mod2_class")
+    if st.button("Calculate Tolerances"):
+        u, l = find_tolerance(dia2, tol_class)
+        if u is not None:
+            st.success("✅ Tolerance Found:")
+            st.write(f"**Upper Deviation:** +{u} µm")
+            st.write(f"**Lower Deviation:** {l} µm")
+            st.write(f"**Max Bore Diameter:** {dia2 + u/1000:.3f} mm")
+            st.write(f"**Min Bore Diameter:** {dia2 + l/1000:.3f} mm")
         else:
-            st.error("Bore diameter not found in the selected tolerance class table.")
+            st.error("Not found in table.")
 
 # ----------------------------
 # Module 3 – Roller Profile Matching
 # ----------------------------
-with tab3:
+with tabs[2]:
     st.header("📊 Module 3: Roller Profile Matching")
-    profile_type = st.selectbox("Roller Profile Type", ["Logarithmic", "Crowned", "Flat"])
-    roller_dia_input = st.number_input("Enter Roller Diameter (mm)", min_value=0.0, step=0.1, value=40.0)
-    if st.button("Check Profile Tolerance"):
-        max_dev = get_max_deviation(profile_type, roller_dia_input)
-        if max_dev is not None:
-            st.success(f"Max allowed deviation: {max_dev} µm")
+    ptype = st.selectbox("Profile Type", ["Logarithmic", "Crowned", "Flat"], key="mod3_type")
+    pr_dia = st.number_input("Roller Diameter (mm)", value=40.0, key="mod3_dia")
+    if st.button("Check Max Deviation"):
+        dev = get_max_deviation(ptype, pr_dia)
+        if dev is not None:
+            st.success(f"✅ Max Deviation for {ptype} with {pr_dia} mm: {dev} µm")
         else:
-            st.error("No data for selected profile and diameter.")
+            st.error("No matching record found.")
 
 # ----------------------------
-# Module 4 – Material & Heat Treatment Selector
+# Module 4 – Material Selector
 # ----------------------------
-with tab4:
-    st.header("🔥 Module 4: Material & Heat Treatment Selector")
-    roller_dia_4 = st.number_input("Roller Diameter (mm)", min_value=0.0, step=0.1, value=35.0)
-    wall_thickness_4 = st.number_input("Wall Thickness (mm)", min_value=0.0, step=0.1, value=20.0)
-    load_type_4 = st.selectbox("Load Type", ["standard", "impact"])
-    if st.button("Get Material & Treatment"):
-        steel, treatment = suggest_material_and_treatment_module3(roller_dia_4, wall_thickness_4, load_type_4)
-        st.write(f"**Recommended Steel:** {steel}")
-        st.write(f"**Heat Treatment:** {treatment}")
+with tabs[3]:
+    st.header("⚙️ Module 4: Material & Heat Treatment Selector")
+    rd4 = st.number_input("Roller Diameter (mm)", value=35.0, key="mod4_roller")
+    wt4 = st.number_input("Wall Thickness (mm)", value=20.0, key="mod4_wall")
+    load4 = st.selectbox("Load Type", ["standard", "impact"], key="mod4_load")
+    if st.button("Get Recommendation", key="btn_mod4"):
+        steel4, ht4 = suggest_material_and_treatment_module3(rd4, wt4, load4)
+        st.write(f"**Steel:** {steel4}")
+        st.write(f"**Heat Treatment:** {ht4}")
 
 # ----------------------------
-# Module 5 – Clearance Class Checker
+# Module 5 – Clearance Checker
 # ----------------------------
-with tab5:
+with tabs[4]:
     st.header("📐 Module 5: Clearance Class Checker")
-    bore_dia_5 = st.number_input("Enter Bore Diameter (mm)", min_value=0.0, step=0.1, value=250.0)
-    mill_type_5 = st.selectbox("Mill Type", [None, "hot mill", "cold mill"])
-    if st.button("Check Clearance Class"):
-        clearance = suggest_clearance(bore_dia_5, mill_type_5)
-        st.write(f"**Recommended Clearance Class:** {clearance}")
+    bd5 = st.number_input("Bore Diameter (mm)", value=250.0, key="mod5_bore")
+    mt5 = st.selectbox("Mill Type", [None, "hot mill", "cold mill"], key="mod5_mill")
+    if st.button("Check Clearance", key="btn_mod5"):
+        cc5 = suggest_clearance(bd5, mt5)
+        st.success(f"✅ Recommended Clearance Class: {cc5}")
