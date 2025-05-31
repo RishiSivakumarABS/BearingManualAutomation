@@ -89,11 +89,11 @@ def suggest_clearance(bore_dia, mill_type=None):
 # Tabs for Modules 1 to 5
 # ----------------------------
 tabs = st.tabs([
-    "Module 1 – Smart Specification Selector", 
-    "Module 2 – Tolerance & Fit Calculator",
-    "Module 3 – Roller Profile Matching",
-    "Module 4 – Material & Heat Treatment Selector",
-    "Module 5 – Clearance Class Checker"
+    "Smart Specification Selector", 
+    "Tolerance & Fit Calculator",
+    "Roller Profile Matching",
+    "Material & Heat Treatment Selector",
+    "Clearance Class Checker"
 ])
 
 # ----------------------------
