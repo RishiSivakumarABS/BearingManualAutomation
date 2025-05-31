@@ -1,8 +1,6 @@
 import streamlit as st
-from docx import Document
 from datetime import datetime
 import pandas as pd
-import io
 
 st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
 st.title("🛠️ ABS Bearing Design Automation Tool")
@@ -192,28 +190,28 @@ with tabs[4]:
 with tabs[5]:
     st.header("✅ Module 6: Final Compliance Validator")
 
-    st.markdown("Enter values you have selected manually to check for consistency with ABS logic.")
-    fcv_bore = st.number_input("Bore Diameter (mm)", value=250.0, key="fcv_bore")
-    fcv_rpm = st.number_input("Operating Speed (RPM)", value=500, key="fcv_rpm")
-    fcv_class = st.selectbox("Selected Bearing Class", ["P5", "P6"], key="fcv_class")
-    fcv_clearance = st.selectbox("Selected Clearance", ["C2", "Normal", "C3", "C4", "C5"], key="fcv_clearance")
-    fcv_profile = st.selectbox("Selected Roller Profile", ["Logarithmic", "Crowned", "Flat"], key="fcv_profile")
+    st.markdown("Enter selected parameters from Modules 1–5 to validate against ABS standards.")
 
-    if st.button("Validate Compliance", key="btn_mod6"):
+    f_bearing_class = st.selectbox("Selected Bearing Class", ["P5", "P6"], key="mod6_bc")
+    f_clearance_class = st.selectbox("Selected Clearance Class", ["C2", "Normal", "C3", "C4", "C5"], key="mod6_cc")
+    f_tol_class = st.selectbox("Selected Tolerance Class", ["Normal", "P6", "P5"], key="mod6_tol")
+    f_steel = st.selectbox("Selected Steel", ["GCr15", "GCr15SiMn", "GCr18Mo", "G20Cr2Ni4A"], key="mod6_steel")
+    f_ht = st.selectbox("Selected Heat Treatment", ["Martensitic Quenching", "Bainite Isothermal QT", "Carburizing Heat Treatment"], key="mod6_ht")
+    f_cage = st.selectbox("Selected Cage Type", ["Pin-Type", "Polymer", "Riveted", "Machined"], key="mod6_cage")
+
+    if st.button("Run Compliance Check", key="mod6_check"):
         issues = []
 
-        if fcv_class == "P5" and fcv_rpm < 500:
-            issues.append("P5 is usually recommended for high-speed or precision applications.")
+        if f_bearing_class == "P5" and f_tol_class == "Normal":
+            issues.append("P5 bearing class typically should not use Normal tolerance.")
+        if f_clearance_class == "C5" and f_steel == "GCr15":
+            issues.append("C5 clearance is not typically paired with GCr15.")
+        if f_cage == "Polymer" and f_ht == "Carburizing Heat Treatment":
+            issues.append("Polymer cages are not ideal for carburized components.")
 
-        if fcv_clearance == "C2" and fcv_bore > 120:
-            issues.append("C2 clearance is typically used for small bores.")
-
-        if fcv_profile == "Flat" and fcv_bore > 60:
-            issues.append("Flat profiles are generally used for low-load, smaller rollers.")
-
-        if not issues:
-            st.success("✅ No compliance issues found.")
-        else:
-            st.error("⚠️ Compliance issues found:")
+        if issues:
+            st.error("❌ Compliance Issues Found:")
             for i in issues:
                 st.write(f"- {i}")
+        else:
+            st.success("✅ All selections are compliant with defined engineering rules.")
