@@ -133,15 +133,24 @@ with tabs[0]:
 
         # Optional: generate report only for Module 1
         doc = Document()
-        doc.add_heading("ABS Bearing Design Report", level=1)
+        doc.add_heading('ABS Bearing Design Report', level=1)
         doc.add_paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        doc.add_heading("Module 1 – Specification Output", level=2)
+
+        doc.add_heading('Module 1 – Specification Output', level=2)
         doc.add_paragraph(f"Bore Diameter: {bore} mm")
+        doc.add_paragraph(f"Wall Thickness: {wall} mm")
+        doc.add_paragraph(f"Roller Diameter: {roller} mm")
+        doc.add_paragraph(f"Application Type: {app}")
+        doc.add_paragraph(f"Operating Speed: {rpm} RPM")
+        doc.add_paragraph(f"Mill Type: {mill}")
+        doc.add_paragraph(f"Load Type: {load}")
+
         doc.add_paragraph(f"Bearing Class: {bc}")
         doc.add_paragraph(f"Clearance Class: {cc}")
         doc.add_paragraph(f"Steel Type: {steel}")
         doc.add_paragraph(f"Heat Treatment: {ht}")
-        doc.add_paragraph(f"Cage Type: {ct} ({cm})")
+        doc.add_paragraph(f"Cage Type & Material: {ct} ({cm})")
+
 
         buffer = io.BytesIO()
         doc.save(buffer)
