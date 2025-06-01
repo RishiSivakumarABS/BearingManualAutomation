@@ -178,7 +178,7 @@ with tabs[2]:
     st.header("📊 Module 3: Roller Profile Matching")
     ptype = st.selectbox("Profile Type", ["Logarithmic", "Crowned", "Flat"], key="mod3_type")
     pr_dia = st.number_input("Roller Diameter (mm)", value=40.0, key="mod3_dia")
-    if st.button("Check Max Deviation"):
+    if st.button("Check Max Deviation", key="btn_mod3"):
         dev = get_max_deviation(ptype, pr_dia)
         if dev is not None:
             st.success(f"✅ Max Deviation for {ptype} with {pr_dia} mm: {dev} µm")
