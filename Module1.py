@@ -1,6 +1,8 @@
 import streamlit as st
+from docx import Document
 from datetime import datetime
 import pandas as pd
+import io
 
 st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
 st.title("🛠️ ABS Bearing Design Automation Tool")
@@ -38,8 +40,7 @@ roller_profile_df = pd.DataFrame([
 ])
 
 def get_max_deviation(profile_type, diameter):
-    df = roller_profile_df
-    for _, row in df.iterrows():
+    for _, row in roller_profile_df.iterrows():
         if row['Profile Type'].lower() == profile_type.lower() and row['Min Dia (mm)'] <= diameter <= row['Max Dia (mm)']:
             return row['Max Deviation (µm)']
     return None
@@ -96,7 +97,7 @@ tabs = st.tabs([
 ])
 
 # ----------------------------
-# Module 1 – Spec Selector
+# Module 1 – Smart Spec Selector
 # ----------------------------
 with tabs[0]:
     st.header("🔧 Module 1: Smart Specification Selector")
@@ -105,7 +106,7 @@ with tabs[0]:
     roller = st.number_input("Roller Diameter (mm)", value=35, key="mod1_roller")
     app = st.selectbox("Application Type", ["standard", "precision", "high load"], key="mod1_app")
     rpm = st.number_input("Operating Speed (RPM)", value=300, key="mod1_rpm")
-    mill = st.selectbox("Mill Type (optional)", [None, "hot mill", "cold mill"], key="mod1_mill")
+    mill = st.selectbox("Mill Type", [None, "hot mill", "cold mill"], key="mod1_mill")
     load = st.selectbox("Load Type", ["standard", "impact"], key="mod1_load")
 
     def bearing_class(app_type): return "P5" if app_type == "precision" else "P6"
@@ -128,6 +129,18 @@ with tabs[0]:
         st.write(f"**Cage Type & Material:** {ct} ({cm})")
         st.success("✅ Recommendation generated.")
 
+        doc1 = Document()
+        doc1.add_heading('Module 1 – Specification Selector', level=1)
+        doc1.add_paragraph(f"Bearing Class: {bc}")
+        doc1.add_paragraph(f"Clearance Class: {cc}")
+        doc1.add_paragraph(f"Steel Type: {steel}")
+        doc1.add_paragraph(f"Heat Treatment: {ht}")
+        doc1.add_paragraph(f"Cage Type & Material: {ct} ({cm})")
+        buf1 = io.BytesIO()
+        doc1.save(buf1)
+        buf1.seek(0)
+        st.download_button("📄 Download Module 1 Report", buf1, "Module1_Specification.docx")
+
 # ----------------------------
 # Module 2 – Tolerance & Fit
 # ----------------------------
@@ -143,6 +156,18 @@ with tabs[1]:
             st.write(f"**Lower Deviation:** {l} µm")
             st.write(f"**Max Bore Diameter:** {dia2 + u/1000:.3f} mm")
             st.write(f"**Min Bore Diameter:** {dia2 + l/1000:.3f} mm")
+
+            doc2 = Document()
+            doc2.add_heading('Module 2 – Tolerance & Fit', level=1)
+            doc2.add_paragraph(f"Bore Diameter: {dia2} mm")
+            doc2.add_paragraph(f"Upper Deviation: +{u} µm")
+            doc2.add_paragraph(f"Lower Deviation: {l} µm")
+            doc2.add_paragraph(f"Max Bore Diameter: {dia2 + u/1000:.3f} mm")
+            doc2.add_paragraph(f"Min Bore Diameter: {dia2 + l/1000:.3f} mm")
+            buf2 = io.BytesIO()
+            doc2.save(buf2)
+            buf2.seek(0)
+            st.download_button("📄 Download Module 2 Report", buf2, "Module2_Tolerances.docx")
         else:
             st.error("Not found in table.")
 
@@ -188,30 +213,47 @@ with tabs[4]:
 # Module 6 – Final Compliance Validator
 # ----------------------------
 with tabs[5]:
-    st.header("✅ Module 6: Final Compliance Validator")
+    st.header("🧾 Module 6: Final Compliance Validator")
+    st.markdown("This module checks if your selected parameters comply with ABS internal guidelines.")
+    # Logic can be expanded based on known checks
+    st.info("Compliance checks coming soon!")
 
-    st.markdown("Enter selected parameters from Modules 1–5 to validate against ABS standards.")
+# ----------------------------
+# Global Report Generator
+# ----------------------------
+st.markdown("---")
+st.header("📄 Download Full Report")
 
-    f_bearing_class = st.selectbox("Selected Bearing Class", ["P5", "P6"], key="mod6_bc")
-    f_clearance_class = st.selectbox("Selected Clearance Class", ["C2", "Normal", "C3", "C4", "C5"], key="mod6_cc")
-    f_tol_class = st.selectbox("Selected Tolerance Class", ["Normal", "P6", "P5"], key="mod6_tol")
-    f_steel = st.selectbox("Selected Steel", ["GCr15", "GCr15SiMn", "GCr18Mo", "G20Cr2Ni4A"], key="mod6_steel")
-    f_ht = st.selectbox("Selected Heat Treatment", ["Martensitic Quenching", "Bainite Isothermal QT", "Carburizing Heat Treatment"], key="mod6_ht")
-    f_cage = st.selectbox("Selected Cage Type", ["Pin-Type", "Polymer", "Riveted", "Machined"], key="mod6_cage")
+def generate_full_report():
+    doc = Document()
+    doc.add_heading('ABS Bearing Design – Full Report', level=1)
+    doc.add_paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
-    if st.button("Run Compliance Check", key="mod6_check"):
-        issues = []
+    try:
+        doc.add_heading("Module 1 – Smart Specification Selector", level=2)
+        doc.add_paragraph(f"Bearing Class: {bc}")
+        doc.add_paragraph(f"Clearance Class: {cc}")
+        doc.add_paragraph(f"Steel Type: {steel}")
+        doc.add_paragraph(f"Heat Treatment: {ht}")
+        doc.add_paragraph(f"Cage Type & Material: {ct} ({cm})")
+    except:
+        doc.add_paragraph("Module 1 values not available.")
 
-        if f_bearing_class == "P5" and f_tol_class == "Normal":
-            issues.append("P5 bearing class typically should not use Normal tolerance.")
-        if f_clearance_class == "C5" and f_steel == "GCr15":
-            issues.append("C5 clearance is not typically paired with GCr15.")
-        if f_cage == "Polymer" and f_ht == "Carburizing Heat Treatment":
-            issues.append("Polymer cages are not ideal for carburized components.")
+    try:
+        doc.add_heading("Module 2 – Tolerance & Fit", level=2)
+        doc.add_paragraph(f"Bore Diameter: {dia2} mm")
+        doc.add_paragraph(f"Upper Deviation: +{u} µm")
+        doc.add_paragraph(f"Lower Deviation: {l} µm")
+        doc.add_paragraph(f"Max Bore Diameter: {dia2 + u/1000:.3f} mm")
+        doc.add_paragraph(f"Min Bore Diameter: {dia2 + l/1000:.3f} mm")
+    except:
+        doc.add_paragraph("Module 2 values not available.")
 
-        if issues:
-            st.error("❌ Compliance Issues Found:")
-            for i in issues:
-                st.write(f"- {i}")
-        else:
-            st.success("✅ All selections are compliant with defined engineering rules.")
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf
+
+if st.button("📥 Generate & Download Full Report"):
+    report = generate_full_report()
+    st.download_button("📄 Download ABS Full Report", report, "ABS_Bearing_Design_Full_Report.docx")
