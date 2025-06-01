@@ -40,7 +40,8 @@ roller_profile_df = pd.DataFrame([
 ])
 
 def get_max_deviation(profile_type, diameter):
-    for _, row in roller_profile_df.iterrows():
+    df = roller_profile_df
+    for _, row in df.iterrows():
         if row['Profile Type'].lower() == profile_type.lower() and row['Min Dia (mm)'] <= diameter <= row['Max Dia (mm)']:
             return row['Max Deviation (µm)']
     return None
@@ -97,7 +98,7 @@ tabs = st.tabs([
 ])
 
 # ----------------------------
-# Module 1 – Spec Selector
+# Module 1 – Smart Specification Selector
 # ----------------------------
 with tabs[0]:
     st.header("🔧 Module 1: Smart Specification Selector")
@@ -117,7 +118,7 @@ with tabs[0]:
         elif app_type == "standard": return "Riveted", "Steel, Mass"
         else: return "Machined", "Steel, Mass"
 
-    if st.button("Generate Specification Recommendation", key="btn_mod1"):
+    if st.button("Generate Specification Recommendation"):
         bc = bearing_class(app)
         cc = suggest_clearance(bore, mill)
         steel, ht = suggest_material_and_treatment_module3(roller, wall, load)
@@ -130,25 +131,23 @@ with tabs[0]:
         st.write(f"**Cage Type & Material:** {ct} ({cm})")
         st.success("✅ Recommendation generated.")
 
+        # Optional: generate report only for Module 1
         doc = Document()
-        doc.add_heading('ABS Bearing Design Report', level=1)
+        doc.add_heading("ABS Bearing Design Report", level=1)
         doc.add_paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        doc.add_heading("Module 1 – Specification Output", level=2)
         doc.add_paragraph(f"Bore Diameter: {bore} mm")
         doc.add_paragraph(f"Bearing Class: {bc}")
         doc.add_paragraph(f"Clearance Class: {cc}")
         doc.add_paragraph(f"Steel Type: {steel}")
         doc.add_paragraph(f"Heat Treatment: {ht}")
-        doc.add_paragraph(f"Cage Type: {ct}")
-        doc.add_paragraph(f"Cage Material: {cm}")
+        doc.add_paragraph(f"Cage Type: {ct} ({cm})")
+
         buffer = io.BytesIO()
         doc.save(buffer)
         buffer.seek(0)
-        st.download_button(
-            label="📄 Download Specification Report",
-            data=buffer,
-            file_name="ABS_Bearing_Design_Report.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+
+        st.download_button("📥 Download Module 1 Report", data=buffer, file_name="Bearing_Module1_Report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 # ----------------------------
 # Module 2 – Tolerance & Fit
@@ -157,7 +156,7 @@ with tabs[1]:
     st.header("📏 Module 2: Tolerance & Fit Calculator")
     dia2 = st.number_input("Enter Bore Diameter (mm)", value=280.0, key="mod2_dia")
     tol_class = st.selectbox("Tolerance Class", ["Normal", "P6", "P5"], key="mod2_class")
-    if st.button("Calculate Tolerances", key="btn_mod2"):
+    if st.button("Calculate Tolerances"):
         u, l = find_tolerance(dia2, tol_class)
         if u is not None:
             st.success("✅ Tolerance Found:")
@@ -175,7 +174,7 @@ with tabs[2]:
     st.header("📊 Module 3: Roller Profile Matching")
     ptype = st.selectbox("Profile Type", ["Logarithmic", "Crowned", "Flat"], key="mod3_type")
     pr_dia = st.number_input("Roller Diameter (mm)", value=40.0, key="mod3_dia")
-    if st.button("Check Max Deviation", key="btn_mod3"):
+    if st.button("Check Max Deviation"):
         dev = get_max_deviation(ptype, pr_dia)
         if dev is not None:
             st.success(f"✅ Max Deviation for {ptype} with {pr_dia} mm: {dev} µm")
@@ -211,12 +210,30 @@ with tabs[4]:
 # ----------------------------
 with tabs[5]:
     st.header("✅ Module 6: Final Compliance Validator")
-    entered_class = st.selectbox("Selected Bearing Class", ["P5", "P6", "Normal"], key="mod6_class")
-    entered_clearance = st.selectbox("Selected Clearance Class", ["C2", "Normal", "C3", "C4", "C5"], key="mod6_clearance")
-    entered_steel = st.text_input("Chosen Steel Type", key="mod6_steel")
-    entered_heat = st.text_input("Chosen Heat Treatment", key="mod6_heat")
-    if st.button("Validate Configuration", key="btn_mod6"):
-        if not entered_steel or not entered_heat:
-            st.warning("⚠️ Please fill out all fields.")
+    st.markdown("Enter selected parameters from Modules 1–5 to validate against ABS standards.")
+
+    f_bearing_class = st.selectbox("Selected Bearing Class", ["P5", "P6"], key="mod6_bc")
+    f_clearance_class = st.selectbox("Selected Clearance Class", ["C2", "Normal", "C3", "C4", "C5"], key="mod6_cc")
+    f_tol_class = st.selectbox("Selected Tolerance Class", ["Normal", "P6", "P5"], key="mod6_tol")
+    f_steel = st.selectbox("Selected Steel", ["GCr15", "GCr15SiMn", "GCr18Mo", "G20Cr2Ni4A"], key="mod6_steel")
+    f_ht = st.selectbox("Selected Heat Treatment", [
+        "Martensitic Quenching", "Bainite Isothermal QT", "Carburizing Heat Treatment"
+    ], key="mod6_ht")
+    f_cage = st.selectbox("Selected Cage Type", ["Pin-Type", "Polymer", "Riveted", "Machined"], key="mod6_cage")
+
+    if st.button("Run Compliance Check", key="mod6_check"):
+        issues = []
+
+        if f_bearing_class == "P5" and f_tol_class == "Normal":
+            issues.append("P5 bearing class typically should not use Normal tolerance.")
+        if f_clearance_class == "C5" and f_steel == "GCr15":
+            issues.append("C5 clearance is not typically paired with GCr15.")
+        if f_cage == "Polymer" and f_ht == "Carburizing Heat Treatment":
+            issues.append("Polymer cages are not ideal for carburized components.")
+
+        if issues:
+            st.error("❌ Compliance Issues Found:")
+            for i in issues:
+                st.write(f"- {i}")
         else:
-            st.success("✅ Configuration entered. Please review manually or consult Mr. Wu for validation.")
+            st.success("✅ All selections are compliant with defined engineering rules.")
