@@ -235,8 +235,6 @@ with tabs[5]:
 
         if f_bearing_class == "P5" and f_tol_class == "Normal":
             issues.append("P5 bearing class typically should not use Normal tolerance.")
-        if f_clearance_class == "C5" and f_steel == "GCr15":
-            issues.append("C5 clearance is not typically paired with GCr15.")
         if f_cage == "Polymer" and f_ht == "Carburizing Heat Treatment":
             issues.append("Polymer cages are not ideal for carburized components.")
 
