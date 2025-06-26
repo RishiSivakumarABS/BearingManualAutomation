@@ -165,7 +165,10 @@ with tabs[0]:
     if st.button("Generate Specification Recommendation"):
         bc = bearing_class(app)
         cc = suggest_clearance(bore, mill)
-        steel, ht = suggest_material_and_treatment_module3(roller, wall, load)
+        steel, ht = suggest_material_and_treatment_module3(
+    roller, wall, load, ring_position=ring_position, bearing_type=bearing_type
+)
+
         ct, cm = cage(app, rpm)
 
         st.write(f"**Bearing Class:** {bc}")
@@ -271,7 +274,7 @@ with tabs[3]:
         st.success("✅ Material Recommendation Found:")
         st.write(f"**Steel Type:** {steel4}")
         st.write(f"**Heat Treatment:** {ht4}")
-        
+
 # ----------------------------
 # Module 5 – Clearance Checker
 # ----------------------------
