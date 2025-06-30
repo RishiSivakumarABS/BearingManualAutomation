@@ -16,15 +16,20 @@ def suggest_material_and_treatment_module3(
     wall_thickness,
     load_type="standard",
     ring_position=None,
-    bearing_type=None
+    bearing_type=None,
+    mill_type=None  # Add this if you want to pass it too
 ):
     load_type = load_type.lower()
 
-    # Priority: Load type
+    # 1️⃣ Priority: Load type override
     if load_type == "impact":
         return "G20Cr2Ni4A", "Carburizing Heat Treatment"
 
-    # Then evaluate based on stress factors
+    # 2️⃣ Priority: Mill type override
+    if mill_type == "hot mill":
+        return "GCr18Mo", "Bainite Isothermal QT"
+
+    # 3️⃣ Then normal stress factor logic
     if ring_position == "Inner Ring":
         if bearing_type == "Fixed":
             if roller_dia > 45 or wall_thickness > 25:
@@ -40,7 +45,7 @@ def suggest_material_and_treatment_module3(
         else:
             return "GCr15SiMn", "Martensitic Quenching"
 
-    # Fallback logic (legacy)
+    # 4️⃣ Fallback (legacy)
     if wall_thickness <= 17 and roller_dia <= 32:
         return "GCr15", "Martensitic Quenching"
     elif wall_thickness <= 25 and roller_dia <= 45:
@@ -166,7 +171,7 @@ with tabs[0]:
         bc = bearing_class(app)
         cc = suggest_clearance(bore, mill)
         steel, ht = suggest_material_and_treatment_module3(
-    roller, wall, load, ring_position=ring_position, bearing_type=bearing_type
+    roller, wall, load, ring_position=ring_position, bearing_type=bearing_type, mill_type=mill
 )
 
         ct, cm = cage(app, rpm)
@@ -226,7 +231,7 @@ with tabs[1]:
             st.write(f"**Lower Deviation:** {result['lower_dev']} µm")
             st.write(f"**Maximum Bore Diameter:** {result['max_bore']} mm")
             st.write(f"**Minimum Bore Diameter:** {result['min_bore']} mm")
-            st.caption("Tolerance values based on SKF ISO 492 standards unless overridden by ABS rules.")
+            st.caption("Tolerance values based on ISO 492 standards")
         else:
             st.error("⚠️ Bore diameter not found in the selected tolerance class table.")
 
@@ -260,16 +265,17 @@ with tabs[2]:
 # ----------------------------
 with tabs[3]:
     st.header("⚙️ Module 4: Material & Heat Treatment Selector")
-    
+
     rd4 = st.number_input("Roller Diameter (mm)", value=35.0, key="mod4_roller")
     wt4 = st.number_input("Wall Thickness (mm)", value=20.0, key="mod4_wall")
     load4 = st.selectbox("Load Type", ["standard", "impact"], key="mod4_load")
     ring4 = st.selectbox("Ring Position", ["Inner Ring", "Outer Ring"], key="mod4_ring")
     type4 = st.selectbox("Bearing Type", ["Fixed", "Floating"], key="mod4_type")
+    mill4 = st.selectbox("Mill Type (optional)", [None, "hot mill", "cold mill"], key="mod4_mill")
 
     if st.button("Get Recommendation", key="btn_mod4"):
         steel4, ht4 = suggest_material_and_treatment_module3(
-            rd4, wt4, load4, ring_position=ring4, bearing_type=type4
+            rd4, wt4, load4, ring_position=ring4, bearing_type=type4, mill_type=mill4
         )
         st.success("✅ Material Recommendation Found:")
         st.write(f"**Steel Type:** {steel4}")
