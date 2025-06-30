@@ -35,7 +35,7 @@ def suggest_material_and_treatment_module3(
             if roller_dia > 45 or wall_thickness > 25:
                 return "GCr18Mo", "Bainite Isothermal QT"
             else:
-                return "GCr15SiMn", "Martensitic Quenching"
+                return "GCr15", "Martensitic Quenching"
         elif bearing_type == "Floating":
             return "GCr15", "Martensitic Quenching"
 
