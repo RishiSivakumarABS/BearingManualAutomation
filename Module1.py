@@ -185,9 +185,10 @@ with tabs[0]:
     if st.button("Generate Specification Recommendation"):
         bc = bearing_class(app)
         cc = suggest_clearance(bore, mill)
-        steel, ht = suggest_material_and_treatment_module3(
+        steel, ht, notes = suggest_material_and_treatment_module3(
     roller, wall, load, ring_position=ring_position, bearing_type=bearing_type, mill_type=mill
 )
+
 
         ct, cm = cage(app, rpm)
 
@@ -289,9 +290,10 @@ with tabs[3]:
     mill4 = st.selectbox("Mill Type (optional)", [None, "hot mill", "cold mill"], key="mod4_mill")
 
     if st.button("Get Recommendation", key="btn_mod4"):
-        steel4, ht4 = suggest_material_and_treatment_module3(
-            rd4, wt4, load4, ring_position=ring4, bearing_type=type4, mill_type=mill4
-        )
+        steel4, ht4, notes4 = suggest_material_and_treatment_module3(
+    rd4, wt4, load4, ring_position=ring4, bearing_type=type4, mill_type=mill4
+)
+
         st.success("✅ Material Recommendation Found:")
         st.write(f"**Steel Type:** {steel4}")
         st.write(f"**Heat Treatment:** {ht4}")
