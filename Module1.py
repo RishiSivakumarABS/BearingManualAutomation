@@ -12,62 +12,37 @@ st.markdown("This tool assists in selecting bearing specifications and calculati
 # Module 3: Material & Heat Treatment Selector
 # ----------------------------
 def suggest_material_and_treatment_module3(
-    roller_dia,
-    wall_thickness,
-    load_type="standard",
-    ring_position=None,
-    bearing_type=None,
-    mill_type=None
+    roller_dia, wall_thickness, load_type="standard",
+    ring_position=None, bearing_type=None, mill_type=None
 ):
-    """
-    This function gives material & heat treatment recommendation
-    based on:
-    1. Load type priority
-    2. Drawing-based stress factors
-    3. Optional: hot mill note (advisory, no forced override)
-    """
-
+    notes = None
     load_type = load_type.lower()
-    notes = []
 
-    # 1️⃣ Impact always overrides
     if load_type == "impact":
-        return "G20Cr2Ni4A", "Carburizing Heat Treatment"
+        return "G20Cr2Ni4A", "Carburizing Heat Treatment", notes
 
-    # 2️⃣ Stress factor logic from drawing / experience
+    # DO NOT override, only attach note if hot mill
+    if mill_type == "hot mill":
+        notes = "⚠️ Hot mill detected. Confirm with engineering if higher-grade steel like GCr18Mo is needed."
+
     if ring_position == "Inner Ring":
         if bearing_type == "Fixed":
             if roller_dia > 45 or wall_thickness > 25:
-                steel = "GCr18Mo"
-                ht = "Bainite Isothermal QT"
+                return "GCr18Mo", "Bainite Isothermal QT", notes
             else:
-                steel = "GCr15SiMn"
-                ht = "Martensitic Quenching"
+                return "GCr15", "Martensitic Quenching", notes
         elif bearing_type == "Floating":
-            steel = "GCr15"
-            ht = "Martensitic Quenching"
+            return "GCr15", "Martensitic Quenching", notes
 
     elif ring_position == "Outer Ring":
         if bearing_type == "Fixed":
-            steel = "GCr18Mo"
-            ht = "Bainite Isothermal QT"
+            return "GCr18Mo", "Bainite Isothermal QT", notes
         else:
-            steel = "GCr15SiMn"
-            ht = "Martensitic Quenching"
+            return "GCr15SiMn", "Martensitic Quenching", notes
 
-    else:
-        # fallback if position not given
-        steel = "GCr15"
-        ht = "Martensitic Quenching"
+    # fallback
+    return "GCr15", "Martensitic Quenching", notes
 
-    # 3️⃣ Add advisory only if hot mill is selected
-    if mill_type == "hot mill":
-        notes.append(
-            "⚠️ Note: Hot mill detected. Confirm with engineering if a higher-grade steel (like GCr18Mo) is needed instead of standard."
-        )
-
-    # 4️⃣ Return both the result & note (you can print the note in Streamlit)
-    return steel, ht, notes
 
 
 
