@@ -293,6 +293,7 @@ with tabs[3]:
                 st.warning(f"ℹ️ {note}")
 
 
+
 # ----------------------------
 # Module 5 – Clearance Checker
 # ----------------------------
