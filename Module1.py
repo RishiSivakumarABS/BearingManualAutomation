@@ -12,18 +12,23 @@ st.markdown("This tool assists in selecting bearing specifications and calculati
 # Module 3: Material & Heat Treatment Selector
 # ----------------------------
 def suggest_material_and_treatment_module3(
-    roller_dia, wall_thickness, load_type="standard",
-    ring_position=None, bearing_type=None, mill_type=None
+    roller_dia,
+    wall_thickness,
+    load_type="standard",
+    ring_position=None,
+    bearing_type=None,
+    mill_type=None
 ):
-    notes = None
+    notes = []  # always use a list
+
     load_type = load_type.lower()
 
     if load_type == "impact":
         return "G20Cr2Ni4A", "Carburizing Heat Treatment", notes
 
-    # DO NOT override, only attach note if hot mill
+    # If hot mill, do not override, just add note
     if mill_type == "hot mill":
-        notes = "⚠️ Hot mill detected. Confirm with engineering if higher-grade steel like GCr18Mo is needed."
+        notes.append("⚠️ Hot mill detected. Confirm with engineering if a higher-grade steel (like GCr18Mo) is needed instead of standard.")
 
     if ring_position == "Inner Ring":
         if bearing_type == "Fixed":
@@ -42,6 +47,7 @@ def suggest_material_and_treatment_module3(
 
     # fallback
     return "GCr15", "Martensitic Quenching", notes
+
 
 
 
@@ -148,22 +154,25 @@ with tabs[0]:
     ring_position = st.selectbox("Ring Position", ["Inner Ring", "Outer Ring"], key="mod1_ringpos")
     bearing_type = st.selectbox("Bearing Type", ["Fixed", "Floating"], key="mod1_type")
 
-
-    def bearing_class(app_type): return "P5" if app_type == "precision" else "P6"
+    def bearing_class(app_type):
+        return "P5" if app_type == "precision" else "P6"
 
     def cage(app_type, rpm_val):
-        if app_type == "high load": return "Pin-Type", "Steel"
-        elif app_type == "standard" and rpm_val > 1000: return "Polymer", "Nylon/PTFE"
-        elif app_type == "standard": return "Riveted", "Steel, Mass"
-        else: return "Machined", "Steel, Mass"
+        if app_type == "high load":
+            return "Pin-Type", "Steel"
+        elif app_type == "standard" and rpm_val > 1000:
+            return "Polymer", "Nylon/PTFE"
+        elif app_type == "standard":
+            return "Riveted", "Steel, Mass"
+        else:
+            return "Machined", "Steel, Mass"
 
     if st.button("Generate Specification Recommendation"):
         bc = bearing_class(app)
         cc = suggest_clearance(bore, mill)
         steel, ht, notes = suggest_material_and_treatment_module3(
-    roller, wall, load, ring_position=ring_position, bearing_type=bearing_type, mill_type=mill
-)
-
+            roller, wall, load, ring_position=ring_position, bearing_type=bearing_type, mill_type=mill
+        )
 
         ct, cm = cage(app, rpm)
 
@@ -174,11 +183,9 @@ with tabs[0]:
         st.write(f"**Cage Type & Material:** {ct} ({cm})")
         st.success("✅ Recommendation generated.")
 
-        # Show any notes
         if notes:
             for note in notes:
                 st.warning(f"ℹ️ {note}")
-
 
         # Optional: generate report only for Module 1
         doc = Document()
@@ -202,15 +209,17 @@ with tabs[0]:
         doc.add_paragraph(f"Ring Position: {ring_position}")
         doc.add_paragraph(f"Bearing Type: {bearing_type}")
 
-
-
         buffer = io.BytesIO()
         doc.save(buffer)
         buffer.seek(0)
 
-        st.download_button("📥 Download Module 1 Report", data=buffer, file_name="Bearing_Module1_Report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        st.download_button(
+            "📥 Download Module 1 Report",
+            data=buffer,
+            file_name="Bearing_Module1_Report.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
 
-# ----------------------------
 # Module 2 – Tolerance & Fit
 # ----------------------------
 with tabs[1]:
@@ -272,15 +281,17 @@ with tabs[3]:
 
     if st.button("Get Recommendation", key="btn_mod4"):
         steel4, ht4, notes4 = suggest_material_and_treatment_module3(
-    rd4, wt4, load4, ring_position=ring4, bearing_type=type4, mill_type=mill4
-)
+            rd4, wt4, load4, ring_position=ring4, bearing_type=type4, mill_type=mill4
+        )
 
         st.success("✅ Material Recommendation Found:")
         st.write(f"**Steel Type:** {steel4}")
         st.write(f"**Heat Treatment:** {ht4}")
 
-        for note in notes:
-            st.warning(note)
+        if notes4:
+            for note in notes4:
+                st.warning(f"ℹ️ {note}")
+
 
 # ----------------------------
 # Module 5 – Clearance Checker
