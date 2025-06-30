@@ -199,6 +199,12 @@ with tabs[0]:
         st.write(f"**Cage Type & Material:** {ct} ({cm})")
         st.success("✅ Recommendation generated.")
 
+        # Show any notes
+        if notes:
+            for note in notes:
+                st.warning(f"ℹ️ {note}")
+
+
         # Optional: generate report only for Module 1
         doc = Document()
         doc.add_heading('ABS Bearing Design Report', level=1)
@@ -297,6 +303,9 @@ with tabs[3]:
         st.success("✅ Material Recommendation Found:")
         st.write(f"**Steel Type:** {steel4}")
         st.write(f"**Heat Treatment:** {ht4}")
+
+        for note in notes:
+            st.warning(note)
 
 # ----------------------------
 # Module 5 – Clearance Checker
