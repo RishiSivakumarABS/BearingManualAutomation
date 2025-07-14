@@ -6,11 +6,10 @@ import streamlit as st
 st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
 st.title("🛠️ ABS Bearing Design Automation Tool")
 st.markdown("This tool helps design custom Four-Row Cylindrical Roller Bearings based on real input constraints.")
-
 st.markdown("---")
 
 # ----------------------------
-# Section: Geometry
+# Section: Geometry Inputs
 # ----------------------------
 with st.container():
     st.subheader("📐 Bearing Geometry")
@@ -21,7 +20,7 @@ with st.container():
         width_B = st.number_input("↔️ Available Width (B) [mm]", min_value=10.0, max_value=500.0, value=160.0)
 
     with col2:
-        housing_D = st.number_input("🏠 Housing Bore Diameter (D) [mm]", min_value=60.0, max_value=1200.0, value=250.0)
+        housing_D = st.number_input("🏠 Housing Bore Diameter (D) [mm]", min_value=shaft_d+10, max_value=1200.0, value=250.0)
 
 st.markdown("---")
 
@@ -78,4 +77,30 @@ if st.button("✅ Proceed to Design Calculations"):
         "Environment": environment
     })
 
-    st.info("👉 Next step: calculate cross-section, pick roller size, and compute load ratings (Cr, Cor).")
+    st.info("👉 Next: Roller size estimation based on cross-section")
+
+    # ----------------------------
+    # Cross-Section + Roller Size Recommendation
+    # ----------------------------
+    st.subheader("🧩 Module 2: Roller Diameter Recommendation")
+    safety_margin = st.slider("📏 Safety Margin for Wall & Cage (mm)", min_value=2.0, max_value=10.0, value=5.0)
+
+    if housing_D > shaft_d:
+        cross_section = (housing_D - shaft_d) / 2
+        usable_height = cross_section - safety_margin
+
+        # Suggested roller diameters (standard steps)
+        roller_diameters = [d for d in range(20, 65, 5) if d <= usable_height]
+
+        st.markdown("### 📐 Cross-Section Results")
+        st.write(f"- Total Cross Section: `{cross_section:.2f} mm`")
+        st.write(f"- Usable Height (after margin): `{usable_height:.2f} mm`")
+
+        if roller_diameters:
+            st.success(f"✅ Recommended Roller Diameter Range: {roller_diameters} mm")
+        else:
+            st.error("❌ No roller fits in this cross-section with selected margin. Try reducing wall margin or increasing OD.")
+    else:
+        st.warning("⚠️ Housing diameter must be greater than shaft diameter.")
+
+    st.caption("Note: Final roller length and count will depend on total bearing width and cage type.")
