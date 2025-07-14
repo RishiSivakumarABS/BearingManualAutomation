@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import math
 
 # Load SKF roller tables
 roller_df = pd.read_excel("Cylindrical Roller Table.xlsx")
@@ -9,20 +8,15 @@ tolerance_df = pd.read_excel("Roller_Tolerances_SKF.xlsx")
 # Normalize column names
 roller_df.columns = [col.strip().lower().replace(" ", "_") for col in roller_df.columns]
 
-# Mass calculation function for custom rollers
-def calculate_mass_per_100(dw_mm, lw_mm):
-    dw_m = dw_mm / 1000
-    lw_m = lw_mm / 1000
-    volume = math.pi * (dw_m ** 2) / 4 * lw_m
-    return round(100 * volume * 7850, 3)  # 7850 kg/m³ is chrome steel density
-
 # Page setup
 st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
 st.title("🛠️ ABS Bearing Design Automation Tool")
 st.markdown("This tool helps design custom Four-Row Cylindrical Roller Bearings based on real input constraints.")
 st.markdown("---")
 
-# Geometry Inputs
+# ----------------------------
+# Section 1: Geometry Inputs
+# ----------------------------
 with st.container():
     st.subheader("📐 Bearing Geometry")
     col1, col2 = st.columns(2)
@@ -30,11 +24,13 @@ with st.container():
         shaft_d = st.number_input("🔩 Shaft Diameter (d) [mm]", min_value=50.0, max_value=1000.0, value=180.0)
         width_B = st.number_input("↔️ Available Width (B) [mm]", min_value=10.0, max_value=500.0, value=160.0)
     with col2:
-        housing_D = st.number_input("🏠 Housing Bore Diameter (D) [mm]", min_value=shaft_d+10, max_value=1200.0, value=250.0)
+        housing_D = st.number_input("🏠 Housing Bore Diameter (D) [mm]", min_value=shaft_d + 10, max_value=1200.0, value=250.0)
 
 st.markdown("---")
 
-# Load and Speed
+# ----------------------------
+# Section 2: Load and Speed
+# ----------------------------
 with st.container():
     st.subheader("⚙️ Load and Speed Requirements")
     col3, col4 = st.columns(2)
@@ -47,7 +43,9 @@ with st.container():
 
 st.markdown("---")
 
-# Environment
+# ----------------------------
+# Section 3: Environment & Mounting
+# ----------------------------
 with st.container():
     st.subheader("🌡️ Operating Conditions")
     col5, col6 = st.columns(2)
@@ -59,8 +57,19 @@ with st.container():
 
 st.markdown("---")
 
-# Proceed Button
+# ----------------------------
+# Track Button Click State
+# ----------------------------
+if "proceed" not in st.session_state:
+    st.session_state.proceed = False
+
 if st.button("✅ Proceed to Design Calculations"):
+    st.session_state.proceed = True
+
+# ----------------------------
+# Proceed to Design Calculations
+# ----------------------------
+if st.session_state.proceed:
     st.success("Inputs captured successfully!")
     st.write("### 📋 Input Summary")
     st.json({
@@ -76,8 +85,11 @@ if st.button("✅ Proceed to Design Calculations"):
         "Environment": environment
     })
 
-    # Module 2 - Roller Size Estimation
+    # ----------------------------
+    # Module 2: Roller Size Estimation
+    # ----------------------------
     st.markdown("### 🧩 Module 2: Roller Diameter Recommendation")
+
     safety_margin = st.slider("📏 Safety Margin for Wall & Cage (mm)", min_value=2.0, max_value=10.0, value=5.0)
 
     if housing_D > shaft_d:
@@ -97,13 +109,19 @@ if st.button("✅ Proceed to Design Calculations"):
             st.dataframe(valid[["dw", "lw", "r_min", "r_max", "mass_per_100"]].sort_values(by=["dw", "lw"]))
         else:
             st.error("❌ No standard rollers fit in the available space. Consider custom roller.")
-            st.markdown("#### 🔧 Enter Custom Roller Details")
+            st.markdown("#### 🔧 Enter custom roller:")
+
             custom_dw = st.number_input("🌀 Custom Roller Diameter (Dw) [mm]", min_value=1.0, max_value=usable_space)
             custom_lw = st.number_input("📏 Custom Roller Length (Lw) [mm]", min_value=1.0, max_value=width_B)
-            r_min = 0.3
-            r_max = 0.7
-            custom_mass = calculate_mass_per_100(custom_dw, custom_lw)
+
+            # Estimate r_min, r_max (e.g., standard 0.2–0.6 or based on nearby values)
+            default_r_min = 0.2
+            default_r_max = 0.6
+            mass_estimate = round((custom_dw * custom_lw * 0.00785) / 100, 3)  # Steel density approx
+
             st.info(f"📍 Using custom roller: Dw = {custom_dw} mm, Lw = {custom_lw} mm")
-            st.write(f"Estimated r_min = {r_min} mm | r_max = {r_max} mm | Mass per 100 pcs = {custom_mass} kg")
+            st.write(f"- Estimated r_min: `{default_r_min} mm`")
+            st.write(f"- Estimated r_max: `{default_r_max} mm`")
+            st.write(f"- Estimated mass per 100 rollers: `{mass_estimate} kg`")
     else:
         st.warning("⚠️ Housing diameter must be greater than shaft diameter.")
