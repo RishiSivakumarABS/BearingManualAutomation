@@ -105,7 +105,7 @@ if st.button("✅ Proceed to Design Calculations"):
 
         if not valid.empty:
             st.success(f"✅ {len(valid)} roller options available within usable space.")
-            st.dataframe(valid[["designation", "dw", "lw", "mass"]].sort_values(by=["dw", "lw"]))
+            st.dataframe(valid[["Dw", "Lw", "r_min", "r_max","Mass per 100"]].sort_values(by=["dw", "lw"]))
         else:
             st.error("❌ No standard rollers fit in the available space. Consider custom roller.")
             st.markdown("#### 🔧 Enter custom roller:")
