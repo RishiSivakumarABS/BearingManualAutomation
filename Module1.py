@@ -1,9 +1,20 @@
 import streamlit as st
 import pandas as pd
 
-# Load data
+# Load SKF roller tables
 roller_df = pd.read_excel("Cylindrical Roller Table.xlsx")
 tolerance_df = pd.read_excel("Roller_Tolerances_SKF.xlsx")
+
+# Normalize column names
+roller_df.columns = [col.strip().lower().replace(" ", "_") for col in roller_df.columns]
+roller_df = roller_df.rename(columns={
+    "dw_(mm)": "dw",
+    "lw_(mm)": "lw",
+    "r_min_(mm)": "r_min",
+    "r_max_(mm)": "r_max",
+    "massa_de_100_(kg)": "mass",
+    "designación": "designation"
+})
 
 # Page setup
 st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
@@ -11,7 +22,9 @@ st.title("🛠️ ABS Bearing Design Automation Tool")
 st.markdown("This tool helps design custom Four-Row Cylindrical Roller Bearings based on real input constraints.")
 st.markdown("---")
 
-# Geometry Inputs
+# ----------------------------
+# Section 1: Geometry Inputs
+# ----------------------------
 with st.container():
     st.subheader("📐 Bearing Geometry")
     col1, col2 = st.columns(2)
@@ -23,7 +36,9 @@ with st.container():
 
 st.markdown("---")
 
-# Load and Speed
+# ----------------------------
+# Section 2: Load and Speed
+# ----------------------------
 with st.container():
     st.subheader("⚙️ Load and Speed Requirements")
     col3, col4 = st.columns(2)
@@ -36,7 +51,9 @@ with st.container():
 
 st.markdown("---")
 
-# Environment
+# ----------------------------
+# Section 3: Environment & Mounting
+# ----------------------------
 with st.container():
     st.subheader("🌡️ Operating Conditions")
     col5, col6 = st.columns(2)
@@ -48,7 +65,9 @@ with st.container():
 
 st.markdown("---")
 
+# ----------------------------
 # Proceed Button
+# ----------------------------
 if st.button("✅ Proceed to Design Calculations"):
     st.success("Inputs captured successfully!")
     st.write("### 📋 Input Summary")
@@ -65,25 +84,33 @@ if st.button("✅ Proceed to Design Calculations"):
         "Environment": environment
     })
 
-    # Module 2 - Roller Size Estimation
+    # ----------------------------
+    # Module 2: Roller Size Estimation
+    # ----------------------------
     st.markdown("### 🧩 Module 2: Roller Diameter Recommendation")
-    safety_margin = st.slider("📏 Safety Margin for Wall & Cage (mm)", min_value=2.0, max_value=10.0, value=5.0)
 
+    safety_margin = st.slider("📏 Safety Margin for Wall & Cage (mm)", min_value=2.0, max_value=10.0, value=5.0)
+    
     if housing_D > shaft_d:
-        cross_section = (housing_D - shaft_d) / 2
-        usable_height = cross_section - safety_margin
+        reference_dia = (shaft_d + housing_D) / 2
+        total_radial_space = (housing_D - shaft_d) / 2
+        usable_space = total_radial_space - safety_margin
 
         st.markdown("### 📐 Cross-Section Calculation")
-        st.write(f"- Total Cross Section: `{cross_section:.2f} mm`")
-        st.write(f"- Usable Height (after margin): `{usable_height:.2f} mm`")
+        st.write(f"- Reference Diameter: `{reference_dia:.2f} mm`")
+        st.write(f"- Total Radial Space: `{total_radial_space:.2f} mm`")
+        st.write(f"- Usable Height (after safety margin): `{usable_space:.2f} mm`")
 
-        # Filter rollers that fit
-        valid_rollers = roller_df[roller_df["Dw"] <= usable_height].copy()
+        valid = roller_df[roller_df["dw"] <= usable_space].copy()
 
-        if not valid_rollers.empty:
-            st.success(f"✅ {len(valid_rollers)} roller types fit in this cross-section")
-            st.dataframe(valid_rollers[['Dw', 'Lw', 'Mass per 100']].sort_values(by=['Dw', 'Lw']))
+        if not valid.empty:
+            st.success(f"✅ {len(valid)} roller options available within usable space.")
+            st.dataframe(valid[["designation", "dw", "lw", "mass"]].sort_values(by=["dw", "lw"]))
         else:
-            st.error("❌ No rollers found for the given cross-section. Reduce margin or increase OD.")
+            st.error("❌ No standard rollers fit in the available space. Consider custom roller.")
+            st.markdown("#### 🔧 Enter custom roller:")
+            custom_dw = st.number_input("🌀 Custom Roller Diameter (Dw) [mm]", min_value=10.0, max_value=usable_space)
+            custom_lw = st.number_input("📏 Custom Roller Length (Lw) [mm]", min_value=10.0, max_value=width_B)
+            st.info(f"📍 Using custom roller: Dw = {custom_dw} mm, Lw = {custom_lw} mm")
     else:
         st.warning("⚠️ Housing diameter must be greater than shaft diameter.")
