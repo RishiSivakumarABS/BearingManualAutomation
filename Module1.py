@@ -58,49 +58,45 @@ with st.container():
 st.markdown("---")
 
 # ----------------------------
-# Submit Button
+# Summary
 # ----------------------------
-if st.button("✅ Proceed to Design Calculations"):
-    st.success("Inputs captured successfully!")
+st.write("### 📋 Input Summary")
+st.json({
+    "Shaft Diameter (d)": shaft_d,
+    "Housing Bore Diameter (D)": housing_D,
+    "Available Width (B)": width_B,
+    "Radial Load (Fr)": Fr,
+    "Axial Load (Fa)": Fa,
+    "Speed (RPM)": RPM,
+    "Life (hours)": life_hours,
+    "Temperature (°C)": temperature,
+    "Mounting Type": mounting,
+    "Environment": environment
+})
 
-    st.write("### 📋 Input Summary")
-    st.json({
-        "Shaft Diameter (d)": shaft_d,
-        "Housing Bore Diameter (D)": housing_D,
-        "Available Width (B)": width_B,
-        "Radial Load (Fr)": Fr,
-        "Axial Load (Fa)": Fa,
-        "Speed (RPM)": RPM,
-        "Life (hours)": life_hours,
-        "Temperature (°C)": temperature,
-        "Mounting Type": mounting,
-        "Environment": environment
-    })
+# ----------------------------
+# Module 2: Roller Diameter Recommendation
+# ----------------------------
+st.markdown("---")
+st.subheader("🧩 Module 2: Roller Diameter Recommendation")
 
-    st.info("👉 Next: Roller size estimation based on cross-section")
+safety_margin = st.slider("📏 Safety Margin for Wall & Cage (mm)", min_value=2.0, max_value=10.0, value=5.0)
 
-    # ----------------------------
-    # Cross-Section + Roller Size Recommendation
-    # ----------------------------
-    st.subheader("🧩 Module 2: Roller Diameter Recommendation")
-    safety_margin = st.slider("📏 Safety Margin for Wall & Cage (mm)", min_value=2.0, max_value=10.0, value=5.0)
+if housing_D > shaft_d:
+    cross_section = (housing_D - shaft_d) / 2
+    usable_height = cross_section - safety_margin
 
-    if housing_D > shaft_d:
-        cross_section = (housing_D - shaft_d) / 2
-        usable_height = cross_section - safety_margin
+    roller_diameters = [d for d in range(20, 65, 5) if d <= usable_height]
 
-        # Suggested roller diameters (standard steps)
-        roller_diameters = [d for d in range(20, 65, 5) if d <= usable_height]
+    st.markdown("### 📐 Cross-Section Results")
+    st.write(f"- Total Cross Section: `{cross_section:.2f} mm`")
+    st.write(f"- Usable Height (after margin): `{usable_height:.2f} mm`")
 
-        st.markdown("### 📐 Cross-Section Results")
-        st.write(f"- Total Cross Section: `{cross_section:.2f} mm`")
-        st.write(f"- Usable Height (after margin): `{usable_height:.2f} mm`")
-
-        if roller_diameters:
-            st.success(f"✅ Recommended Roller Diameter Range: {roller_diameters} mm")
-        else:
-            st.error("❌ No roller fits in this cross-section with selected margin. Try reducing wall margin or increasing OD.")
+    if roller_diameters:
+        st.success(f"✅ Recommended Roller Diameter Range: {roller_diameters} mm")
     else:
-        st.warning("⚠️ Housing diameter must be greater than shaft diameter.")
+        st.error("❌ No roller fits in this cross-section with selected margin. Try reducing wall margin or increasing OD.")
+else:
+    st.warning("⚠️ Housing diameter must be greater than shaft diameter.")
 
-    st.caption("Note: Final roller length and count will depend on total bearing width and cage type.")
+st.caption("Note: Final roller length and count will depend on total bearing width and cage type.")
