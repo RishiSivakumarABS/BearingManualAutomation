@@ -93,11 +93,11 @@ if st.button("✅ Proceed to Design Calculations"):
         st.write(f"- Total Radial Space: `{total_radial_space:.2f} mm`")
         st.write(f"- Usable Height (after safety margin): `{usable_space:.2f} mm`")
 
-        valid = roller_df[roller_df["Dw"] <= usable_space].copy()
+        valid = roller_df[roller_df["dw"] <= usable_space].copy()
 
         if not valid.empty:
             st.success(f"✅ {len(valid)} roller options available within usable space.")
-            st.dataframe(valid[["Dw", "Lw", "r_min", "r_max","Mass per 100"]].sort_values(by=["Dw", "Lw"]))
+            st.dataframe(valid[["dw", "dw", "r_min", "r_max","mass_per_100"]].sort_values(by=["Dw", "Lw"]))
         else:
             st.error("❌ No standard rollers fit in the available space. Consider custom roller.")
             st.markdown("#### 🔧 Enter custom roller:")
