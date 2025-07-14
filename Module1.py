@@ -7,14 +7,6 @@ tolerance_df = pd.read_excel("Roller_Tolerances_SKF.xlsx")
 
 # Normalize column names
 roller_df.columns = [col.strip().lower().replace(" ", "_") for col in roller_df.columns]
-roller_df = roller_df.rename(columns={
-    "dw_(mm)": "dw",
-    "lw_(mm)": "lw",
-    "r_min_(mm)": "r_min",
-    "r_max_(mm)": "r_max",
-    "massa_de_100_(kg)": "mass",
-    "designación": "designation"
-})
 
 # Page setup
 st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
@@ -101,11 +93,11 @@ if st.button("✅ Proceed to Design Calculations"):
         st.write(f"- Total Radial Space: `{total_radial_space:.2f} mm`")
         st.write(f"- Usable Height (after safety margin): `{usable_space:.2f} mm`")
 
-        valid = roller_df[roller_df["dw"] <= usable_space].copy()
+        valid = roller_df[roller_df["Dw"] <= usable_space].copy()
 
         if not valid.empty:
             st.success(f"✅ {len(valid)} roller options available within usable space.")
-            st.dataframe(valid[["Dw", "Lw", "r_min", "r_max","Mass per 100"]].sort_values(by=["dw", "lw"]))
+            st.dataframe(valid[["Dw", "Lw", "r_min", "r_max","Mass per 100"]].sort_values(by=["Dw", "Lw"]))
         else:
             st.error("❌ No standard rollers fit in the available space. Consider custom roller.")
             st.markdown("#### 🔧 Enter custom roller:")
