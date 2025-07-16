@@ -19,45 +19,31 @@ if "proceed_clicked" not in st.session_state:
     st.session_state["proceed_clicked"] = False
 
 # ----------------------------
-# Section 1: Geometry Inputs
+# Section 1: Bearing Geometry
 # ----------------------------
 with st.container():
     st.subheader("📐 Bearing Geometry")
     col1, col2 = st.columns(2)
     with col1:
-        shaft_d = st.number_input("🔩 Shaft Diameter (d) [mm]", min_value=50.0, max_value=1000.0, value=180.0, key="shaft_d")
-        width_B = st.number_input("↔️ Available Width (B) [mm]", min_value=10.0, max_value=500.0, value=160.0, key="width_B")
+        d = st.number_input("🔩 Inner Diameter (d) [mm]", min_value=50.0, max_value=1000.0, value=180.0, key="d")
+        B = st.number_input("↔️ Available Width (B) [mm]", min_value=10.0, max_value=500.0, value=160.0, key="B")
     with col2:
-        housing_D = st.number_input("🏠 Housing Bore Diameter (D) [mm]", min_value=shaft_d + 10, max_value=1200.0, value=250.0, key="housing_D")
+        D = st.number_input("🏠 Outer Diameter (D) [mm]", min_value=d + 10, max_value=1200.0, value=250.0, key="D")
 
 st.markdown("---")
 
 # ----------------------------
-# Section 2: Load and Speed
+# Section 2: Operating Conditions
 # ----------------------------
 with st.container():
-    st.subheader("⚙️ Load and Speed Requirements")
+    st.subheader("⚙️ Operating Conditions")
     col3, col4 = st.columns(2)
     with col3:
         Fr = st.number_input("📏 Radial Load (Fr) [kN]", min_value=0.0, value=400.0, key="Fr")
         RPM = st.number_input("⏱️ Speed (RPM)", min_value=0, value=500, key="RPM")
     with col4:
         Fa = st.number_input("📏 Axial Load (Fa) [kN]", min_value=0.0, value=50.0, key="Fa")
-        life_hours = st.number_input("⏳ Expected Life (hours)", min_value=0.0, value=20000.0, key="life_hours")
-
-st.markdown("---")
-
-# ----------------------------
-# Section 3: Environment & Mounting
-# ----------------------------
-with st.container():
-    st.subheader("🌡️ Operating Conditions")
-    col5, col6 = st.columns(2)
-    with col5:
         temperature = st.number_input("🌡️ Operating Temperature (°C)", min_value=-50.0, max_value=250.0, value=80.0, key="temperature")
-    with col6:
-        mounting = st.selectbox("⚙️ Mounting Type", ["Fixed", "Floating"], key="mounting")
-        environment = st.selectbox("🌍 Environment", ["Clean", "Dirty", "Corrosive"], key="environment")
 
 st.markdown("---")
 
@@ -74,16 +60,13 @@ if st.session_state["proceed_clicked"]:
     st.success("Inputs captured successfully!")
     st.write("### 📋 Input Summary")
     st.json({
-        "Shaft Diameter (d)": shaft_d,
-        "Housing Bore Diameter (D)": housing_D,
-        "Available Width (B)": width_B,
+        "Inner Diameter (d)": d,
+        "Outer Diameter (D)": D,
+        "Available Width (B)": B,
         "Radial Load (Fr)": Fr,
         "Axial Load (Fa)": Fa,
         "Speed (RPM)": RPM,
-        "Life (hours)": life_hours,
-        "Temperature (°C)": temperature,
-        "Mounting Type": mounting,
-        "Environment": environment
+        "Temperature (°C)": temperature
     })
 
     # ----------------------------
@@ -94,9 +77,9 @@ if st.session_state["proceed_clicked"]:
     # Persistent key for slider
     safety_margin = st.slider("📏 Safety Margin for Wall & Cage (mm)", min_value=2.0, max_value=10.0, value=5.0, key="safety_margin")
 
-    if housing_D > shaft_d:
-        reference_dia = (shaft_d + housing_D) / 2
-        total_radial_space = (housing_D - shaft_d) / 2
+    if D > d:
+        reference_dia = (d + D) / 2
+        total_radial_space = (D - d) / 2
         usable_space = total_radial_space - safety_margin
 
         st.markdown("### 📐 Cross-Section Calculation")
@@ -114,7 +97,7 @@ if st.session_state["proceed_clicked"]:
             st.markdown("#### 🔧 Enter custom roller:")
 
             custom_dw = st.number_input("🌀 Custom Roller Diameter (Dw) [mm]", min_value=1.0, max_value=usable_space, key="custom_dw")
-            custom_lw = st.number_input("📏 Custom Roller Length (Lw) [mm]", min_value=1.0, max_value=width_B, key="custom_lw")
+            custom_lw = st.number_input("📏 Custom Roller Length (Lw) [mm]", min_value=1.0, max_value=B, key="custom_lw")
 
             # Estimate r_min, r_max and mass
             default_r_min = 0.2
@@ -129,4 +112,4 @@ if st.session_state["proceed_clicked"]:
             st.write(f"- Estimated r_max: `{default_r_max} mm`")
             st.write(f"- Estimated mass per 100 rollers: `{mass_per_100} kg`")
     else:
-        st.warning("⚠️ Housing diameter must be greater than shaft diameter.")
+        st.warning("⚠️ Outer diameter must be greater than inner diameter.")
