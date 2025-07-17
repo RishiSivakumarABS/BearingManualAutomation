@@ -48,13 +48,13 @@ with st.container():
 st.markdown("---")
 
 # ----------------------------
-# Proceed Button with session state
+# Proceed Button
 # ----------------------------
 if st.button("✅ Proceed to Design Calculations"):
     st.session_state["proceed_clicked"] = True
 
 # ----------------------------
-# Proceed Only If Clicked
+# Proceed Logic
 # ----------------------------
 if st.session_state["proceed_clicked"]:
     st.success("Inputs captured successfully!")
@@ -70,20 +70,19 @@ if st.session_state["proceed_clicked"]:
     })
 
     # ----------------------------
-    # Module 2: Roller Size Estimation
+    # Module 2: Roller Recommendation
     # ----------------------------
     st.markdown("### 🧩 Module 2: Roller Diameter Recommendation")
 
-    # Persistent key for slider
-    safety_margin = st.slider("📏 Safety Margin for Wall & Cage (mm)", min_value=2.0, max_value=10.0, value=5.0, key="safety_margin")
+    safety_margin = st.slider("📏 Safety Margin for Wall & Cage (mm)", min_value=2.0, max_value=10.0, value=5.0)
 
     if D > d:
-        reference_dia = (d + D) / 2
+        pitch_dia = (d + D) / 2
         total_radial_space = (D - d) / 2
         usable_space = total_radial_space - safety_margin
 
         st.markdown("### 📐 Cross-Section Calculation")
-        st.write(f"- Pitch Diameter: `{reference_dia:.2f} mm`")
+        st.write(f"- Pitch Diameter: `{pitch_dia:.2f} mm`")
         st.write(f"- Total Radial Space: `{total_radial_space:.2f} mm`")
         st.write(f"- Usable Height (after safety margin): `{usable_space:.2f} mm`")
 
@@ -91,25 +90,22 @@ if st.session_state["proceed_clicked"]:
 
         if not valid.empty:
             st.success(f"✅ {len(valid)} roller options available within usable space.")
+
+            # Show full list for transparency
             st.dataframe(valid[["dw", "lw", "r_min", "r_max", "mass_per_100"]].sort_values(by=["dw", "lw"]))
+
+            # Recommend the best fit: largest dw, then longest lw
+            recommended = valid.sort_values(by=["dw", "lw"], ascending=[False, False]).iloc[0]
+            st.markdown("### 🎯 Recommended Roller")
+            st.info(
+                f"**Dw:** {recommended.dw} mm  "
+                f"**Lw:** {recommended.lw} mm  "
+                f"**r_min:** {recommended.r_min} mm  "
+                f"**r_max:** {recommended.r_max} mm  "
+                f"**Mass/100:** {recommended.mass_per_100} kg"
+            )
         else:
-            st.error("❌ No standard rollers fit in the available space. Consider custom roller.")
-            st.markdown("#### 🔧 Enter custom roller:")
-
-            custom_dw = st.number_input("🌀 Custom Roller Diameter (Dw) [mm]", min_value=1.0, max_value=usable_space, key="custom_dw")
-            custom_lw = st.number_input("📏 Custom Roller Length (Lw) [mm]", min_value=1.0, max_value=B, key="custom_lw")
-
-            # Estimate r_min, r_max and mass
-            default_r_min = 0.2
-            default_r_max = 0.6
-            density_steel = 7.85  # g/cm³
-            volume_mm3 = 3.14 * (custom_dw / 2) ** 2 * custom_lw
-            mass_grams = (volume_mm3 * density_steel) / 1000  # in grams
-            mass_per_100 = round((mass_grams * 100) / 1000, 3)  # convert to kg
-
-            st.info(f"📍 Using custom roller: Dw = {custom_dw} mm, Lw = {custom_lw} mm")
-            st.write(f"- Estimated r_min: `{default_r_min} mm`")
-            st.write(f"- Estimated r_max: `{default_r_max} mm`")
-            st.write(f"- Estimated mass per 100 rollers: `{mass_per_100} kg`")
+            st.error("❌ No standard rollers fit in the available space.")
+            st.info("In the next step, you'll be able to input a custom roller configuration.")
     else:
         st.warning("⚠️ Outer diameter must be greater than inner diameter.")
