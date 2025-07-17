@@ -102,29 +102,31 @@ if st.session_state["proceed_clicked"]:
                 f"**Mass/100:** {recommended.mass_per_100} kg"
             )
 
-            # ----------------------------
-            # Designer Roller Selection
-            # ----------------------------
             st.markdown("### ✍️ Designer Selection")
             use_custom = st.radio("Would you like to use the recommended roller or input your own?", ["Use Recommended", "Input Custom"], index=0)
 
             if use_custom == "Use Recommended":
                 selected_dw = recommended.dw
                 selected_lw = recommended.lw
-                selected_r_min = recommended.r_min
-                selected_r_max = recommended.r_max
+                selected_r_min = st.number_input("📐 r_min [mm]", min_value=0.0, max_value=2.0, value=recommended.r_min, key="rec_rmin")
+                selected_r_max = st.number_input("📐 r_max [mm]", min_value=selected_r_min, max_value=3.0, value=recommended.r_max, key="rec_rmax")
                 selected_mass = recommended.mass_per_100
             else:
+                st.markdown("#### 🔧 Enter custom roller:")
                 selected_dw = st.number_input("🌀 Custom Roller Diameter (Dw) [mm]", min_value=1.0, max_value=usable_space, key="custom_dw")
                 selected_lw = st.number_input("📏 Custom Roller Length (Lw) [mm]", min_value=1.0, max_value=B, key="custom_lw")
+                selected_r_min = st.number_input("📐 Custom r_min [mm]", min_value=0.0, max_value=2.0, value=0.2, key="custom_r_min")
+                selected_r_max = st.number_input("📐 Custom r_max [mm]", min_value=selected_r_min, max_value=3.0, value=0.6, key="custom_r_max")
 
-                # Estimate values for custom roller
-                selected_r_min = 0.2
-                selected_r_max = 0.6
                 density_steel = 7.85  # g/cm³
                 volume_mm3 = 3.14 * (selected_dw / 2) ** 2 * selected_lw
                 mass_grams = (volume_mm3 * density_steel) / 1000
-                selected_mass = round((mass_grams * 100) / 1000, 3)
+                selected_mass = round((mass_grams * 100) / 1000, 3)  # convert to kg
+
+                st.info(f"📍 Using custom roller: Dw = {selected_dw} mm, Lw = {selected_lw} mm")
+                st.write(f"- Custom r_min: `{selected_r_min} mm`")
+                st.write(f"- Custom r_max: `{selected_r_max} mm`")
+                st.write(f"- Estimated mass per 100 rollers: `{selected_mass} kg`")
 
             st.markdown("### ✅ Final Roller Configuration")
             st.write(f"- Roller Diameter (Dw): `{selected_dw} mm`")
@@ -140,8 +142,9 @@ if st.session_state["proceed_clicked"]:
             selected_dw = st.number_input("🌀 Custom Roller Diameter (Dw) [mm]", min_value=1.0, max_value=usable_space, key="custom_dw_only")
             selected_lw = st.number_input("📏 Custom Roller Length (Lw) [mm]", min_value=1.0, max_value=B, key="custom_lw_only")
 
-            selected_r_min = 0.2
-            selected_r_max = 0.6
+            selected_r_min = st.number_input("📐 r_min [mm]", min_value=0.0, max_value=2.0, value=0.2, key="fallback_rmin")
+            selected_r_max = st.number_input("📐 r_max [mm]", min_value=selected_r_min, max_value=3.0, value=0.6, key="fallback_rmax")
+
             density_steel = 7.85
             volume_mm3 = 3.14 * (selected_dw / 2) ** 2 * selected_lw
             mass_grams = (volume_mm3 * density_steel) / 1000
