@@ -90,11 +90,8 @@ if st.session_state["proceed_clicked"]:
 
         if not valid.empty:
             st.success(f"✅ {len(valid)} roller options available within usable space.")
-
-            # Show full list for transparency
             st.dataframe(valid[["dw", "lw", "r_min", "r_max", "mass_per_100"]].sort_values(by=["dw", "lw"]))
 
-            # Recommend the best fit: largest dw, then longest lw
             recommended = valid.sort_values(by=["dw", "lw"], ascending=[False, False]).iloc[0]
             st.markdown("### 🎯 Recommended Roller")
             st.info(
@@ -104,8 +101,57 @@ if st.session_state["proceed_clicked"]:
                 f"**r_max:** {recommended.r_max} mm  "
                 f"**Mass/100:** {recommended.mass_per_100} kg"
             )
+
+            # ----------------------------
+            # Designer Roller Selection
+            # ----------------------------
+            st.markdown("### ✍️ Designer Selection")
+            use_custom = st.radio("Would you like to use the recommended roller or input your own?", ["Use Recommended", "Input Custom"], index=0)
+
+            if use_custom == "Use Recommended":
+                selected_dw = recommended.dw
+                selected_lw = recommended.lw
+                selected_r_min = recommended.r_min
+                selected_r_max = recommended.r_max
+                selected_mass = recommended.mass_per_100
+            else:
+                selected_dw = st.number_input("🌀 Custom Roller Diameter (Dw) [mm]", min_value=1.0, max_value=usable_space, key="custom_dw")
+                selected_lw = st.number_input("📏 Custom Roller Length (Lw) [mm]", min_value=1.0, max_value=B, key="custom_lw")
+
+                # Estimate values for custom roller
+                selected_r_min = 0.2
+                selected_r_max = 0.6
+                density_steel = 7.85  # g/cm³
+                volume_mm3 = 3.14 * (selected_dw / 2) ** 2 * selected_lw
+                mass_grams = (volume_mm3 * density_steel) / 1000
+                selected_mass = round((mass_grams * 100) / 1000, 3)
+
+            st.markdown("### ✅ Final Roller Configuration")
+            st.write(f"- Roller Diameter (Dw): `{selected_dw} mm`")
+            st.write(f"- Roller Length (Lw): `{selected_lw} mm`")
+            st.write(f"- r_min: `{selected_r_min} mm`")
+            st.write(f"- r_max: `{selected_r_max} mm`")
+            st.write(f"- Mass per 100 rollers: `{selected_mass} kg`")
+
         else:
             st.error("❌ No standard rollers fit in the available space.")
-            st.info("In the next step, you'll be able to input a custom roller configuration.")
+            st.info("Please proceed by inputting a custom roller configuration.")
+
+            selected_dw = st.number_input("🌀 Custom Roller Diameter (Dw) [mm]", min_value=1.0, max_value=usable_space, key="custom_dw_only")
+            selected_lw = st.number_input("📏 Custom Roller Length (Lw) [mm]", min_value=1.0, max_value=B, key="custom_lw_only")
+
+            selected_r_min = 0.2
+            selected_r_max = 0.6
+            density_steel = 7.85
+            volume_mm3 = 3.14 * (selected_dw / 2) ** 2 * selected_lw
+            mass_grams = (volume_mm3 * density_steel) / 1000
+            selected_mass = round((mass_grams * 100) / 1000, 3)
+
+            st.markdown("### ✅ Final Roller Configuration")
+            st.write(f"- Roller Diameter (Dw): `{selected_dw} mm`")
+            st.write(f"- Roller Length (Lw): `{selected_lw} mm`")
+            st.write(f"- r_min: `{selected_r_min} mm`")
+            st.write(f"- r_max: `{selected_r_max} mm`")
+            st.write(f"- Mass per 100 rollers: `{selected_mass} kg`")
     else:
         st.warning("⚠️ Outer diameter must be greater than inner diameter.")
