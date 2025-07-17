@@ -83,7 +83,7 @@ if st.session_state["proceed_clicked"]:
         usable_space = total_radial_space - safety_margin
 
         st.markdown("### 📐 Cross-Section Calculation")
-        st.write(f"- Reference Diameter: `{reference_dia:.2f} mm`")
+        st.write(f"- Pitch Diameter: `{reference_dia:.2f} mm`")
         st.write(f"- Total Radial Space: `{total_radial_space:.2f} mm`")
         st.write(f"- Usable Height (after safety margin): `{usable_space:.2f} mm`")
 
