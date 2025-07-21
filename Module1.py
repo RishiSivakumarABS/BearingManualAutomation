@@ -195,3 +195,22 @@ st.write(f"**Cr =** `{Cr:,.2f} N`")
 st.caption("Based on ISO 281:2007 Equation (13) for radial roller bearings.")
 st.markdown("---")
 
+# ----------------------------
+# Module 4: Static Load Rating (Cor)
+# ----------------------------
+st.markdown("### 🧱 Module 4: Static Load Rating (Cor)")
+
+# Constants
+cos_alpha = 1.0  # still assuming α = 0
+Dwe = selected_dw
+Lwe = selected_lw
+
+# Formula:
+# Cor = 44 * (1 - (Dwe * cosα) / Dpw) * i * Z * Lwe * Dwe * cosα
+Cor = 44 * (1 - (Dwe * cos_alpha) / Dpw) * i * Z * Lwe * Dwe * cos_alpha
+
+# Output
+st.success("✅ Static Load Rating (Cor) Calculated!")
+st.write(f"**Cor =** `{Cor:,.2f} N`")
+st.caption("Based on ISO static load rating formula for radial roller bearings.")
+st.markdown("---")
