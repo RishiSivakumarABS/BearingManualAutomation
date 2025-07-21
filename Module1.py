@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 # Load SKF roller tables
 roller_df = pd.read_excel("Cylindrical Roller Table.xlsx")
