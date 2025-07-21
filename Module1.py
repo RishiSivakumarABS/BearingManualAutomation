@@ -160,35 +160,38 @@ if st.session_state["proceed_clicked"]:
     else:
         st.warning("⚠️ Outer diameter must be greater than inner diameter.")
 
-    # ----------------------------
-    # Module 3: Cr Calculation
-    # ----------------------------
-    st.markdown("### 🧮 Module 3: Dynamic Load Rating (Cr)")
+# ----------------------------
+# Module 3: Dynamic Load Rating (Cr)
+# ----------------------------
+st.markdown("### 💪 Module 3: Dynamic Load Rating (Cr)")
 
-    i = st.number_input("🔁 Number of Rows (i)", min_value=1, max_value=8, value=4, step=1)
+# Input: number of rows (i)
+i = st.number_input("🔢 Number of Roller Rows (i)", min_value=1, max_value=8, value=4, key="i")
 
-    # Calculate Dpw (pitch diameter), Z (number of rollers)
-    cos_alpha = 1  # alpha = 0 for cylindrical roller bearings
-    Dpw = pitch_dia
-    try:
-        Z = int(np.floor(np.pi / np.arcsin(selected_dw / Dpw)))
-    except ValueError:
-        Z = 1
-        st.error("⚠️ Dwe/Dpw ratio is invalid for arcsin. Please adjust dimensions.")
+# ISO constants
+bm = 1.1  # for cylindrical roller bearings
+cos_alpha = 1.0  # since α = 0° → cos(0) = 1
+Z = int(pitch_dia / (selected_dw + 0.1))  # Estimating Z as number of rollers along pitch circle
+Dpw = pitch_dia
+Lwe = selected_lw  # Effective roller length ≈ Lw
 
-    # Load fc table
-    fc_df = pd.read_excel("ISO_Table_7_fc_values.xlsx")
-    fc_ratio = (selected_dw * cos_alpha) / Dpw
-    fc_ratio = np.clip(fc_ratio, fc_df["ratio"].min(), fc_df["ratio"].max())
-    fc = np.interp(fc_ratio, fc_df["ratio"], fc_df["fc"])
+# Load fc table
+fc_df = pd.read_excel("ISO_Table_7_fc_values.xlsx")
+fc_df.columns = [col.strip().lower().replace(" ", "_") for col in fc_df.columns]
 
-    # Constants
-    bm = 1.1  # for cylindrical roller bearings
+# Calculate Dwe*cosα / Dpw
+fc_ratio = (selected_dw * cos_alpha) / Dpw
+fc_ratio = np.clip(fc_ratio, fc_df["dwe_cos_alpha_over_dpw"].min(), fc_df["dwe_cos_alpha_over_dpw"].max())
 
-    # Calculate Cr
-    Cr = bm * fc * ((i * selected_lw * cos_alpha) ** (7/9)) * (Z ** (3/4)) * (selected_dw ** (29/27))
-    Cr = round(Cr, 2)
+# Interpolate fc
+fc = np.interp(fc_ratio, fc_df["dwe_cos_alpha_over_dpw"], fc_df["fc"])
 
-    st.success("✅ Dynamic Load Rating (Cr) calculated successfully!")
-    st.write(f"**Cr =** `{Cr}` N")
-    st.caption(f"Where Z = {Z}, fc = {fc:.2f}, bm = {bm}, Dwe = {selected_dw}, Lwe = {selected_lw}, Dpw = {Dpw}")
+# Calculate Cr using ISO 281 formula
+Cr = bm * fc * ((i * Lwe * cos_alpha) ** (7 / 9)) * (Z ** (3 / 4)) * (selected_dw ** (29 / 27))
+
+# Output
+st.success("✅ Dynamic Load Rating (Cr) Calculated!")
+st.write(f"**Cr =** `{Cr:,.2f} N`")
+st.caption("Based on ISO 281:2007 Equation (13) for radial roller bearings.")
+st.markdown("---")
+
