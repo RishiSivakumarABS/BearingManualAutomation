@@ -158,3 +158,36 @@ if st.session_state["proceed_clicked"]:
             st.write(f"- Mass per 100 rollers: `{selected_mass} kg`")
     else:
         st.warning("⚠️ Outer diameter must be greater than inner diameter.")
+
+    # ----------------------------
+    # Module 3: Cr Calculation
+    # ----------------------------
+    st.markdown("### 🧮 Module 3: Dynamic Load Rating (Cr)")
+
+    i = st.number_input("🔁 Number of Rows (i)", min_value=1, max_value=8, value=4, step=1)
+
+    # Calculate Dpw (pitch diameter), Z (number of rollers)
+    cos_alpha = 1  # alpha = 0 for cylindrical roller bearings
+    Dpw = pitch_dia
+    try:
+        Z = int(np.floor(np.pi / np.arcsin(selected_dw / Dpw)))
+    except ValueError:
+        Z = 1
+        st.error("⚠️ Dwe/Dpw ratio is invalid for arcsin. Please adjust dimensions.")
+
+    # Load fc table
+    fc_df = pd.read_excel("ISO_Table_7_fc_values.xlsx")
+    fc_ratio = (selected_dw * cos_alpha) / Dpw
+    fc_ratio = np.clip(fc_ratio, fc_df["ratio"].min(), fc_df["ratio"].max())
+    fc = np.interp(fc_ratio, fc_df["ratio"], fc_df["fc"])
+
+    # Constants
+    bm = 1.1  # for cylindrical roller bearings
+
+    # Calculate Cr
+    Cr = bm * fc * ((i * selected_lw * cos_alpha) ** (7/9)) * (Z ** (3/4)) * (selected_dw ** (29/27))
+    Cr = round(Cr, 2)
+
+    st.success("✅ Dynamic Load Rating (Cr) calculated successfully!")
+    st.write(f"**Cr =** `{Cr}` N")
+    st.caption(f"Where Z = {Z}, fc = {fc:.2f}, bm = {bm}, Dwe = {selected_dw}, Lwe = {selected_lw}, Dpw = {Dpw}")
