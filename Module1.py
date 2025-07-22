@@ -7,14 +7,23 @@ roller_df = pd.read_excel("Cylindrical Roller Table.xlsx")
 tolerance_df = pd.read_excel("Roller_Tolerances_SKF.xlsx")
 ira_df = pd.read_excel("Cylindrical Roller Bearings.xlsx")
 
-ira_df['d'] = pd.to_numeric(ira_df['d'], errors='coerce')
-ira_df['d.1'] = pd.to_numeric(ira_df['d.1'], errors='coerce')  # This is actually outer diameter D
-ira_df['b'] = pd.to_numeric(ira_df['b'], errors='coerce')
-ira_df['f'] = pd.to_numeric(ira_df['f'], errors='coerce')
+# Rename IRA columns explicitly
+ira_df.rename(columns={
+    'd': 'd_inner',
+    'd.1': 'D_outer',
+    'b': 'B_width',
+    'f': 'F_ira'
+}, inplace=True)
 
-# Normalize column names
+# Convert to numeric and drop any rows with missing values
+ira_df['d_inner'] = pd.to_numeric(ira_df['d_inner'], errors='coerce')
+ira_df['D_outer'] = pd.to_numeric(ira_df['D_outer'], errors='coerce')
+ira_df['B_width'] = pd.to_numeric(ira_df['B_width'], errors='coerce')
+ira_df['F_ira'] = pd.to_numeric(ira_df['F_ira'], errors='coerce')
+ira_df.dropna(subset=['d_inner', 'D_outer', 'B_width', 'F_ira'], inplace=True)
+
+# Normalize roller table column names
 roller_df.columns = [col.strip().lower().replace(" ", "_") for col in roller_df.columns]
-ira_df.columns = ira_df.columns.str.lower()
 
 # Streamlit config
 st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
@@ -62,11 +71,11 @@ if st.session_state["proceed_clicked"]:
     pitch_dia = (d + D) / 2
     st.markdown(f"### 🎯 Pitch Diameter = `{pitch_dia:.2f} mm`")
 
-    # Find closest IRa (F) from new table
+    # Find closest IRa (F)
     ira_match = ira_df.loc[
-    ((ira_df['d'] - d).abs() + (ira_df['d.1'] - D).abs() + (ira_df['b'] - B).abs()).idxmin()
-]
-    F = ira_match['f']
+        ((ira_df['d_inner'] - d).abs() + (ira_df['D_outer'] - D).abs() + (ira_df['B_width'] - B).abs()).idxmin()
+    ]
+    F = ira_match['F_ira']
     ira_half = F / 2
     roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
     st.write(f"- Closest IRa (F): `{F:.2f} mm`")
