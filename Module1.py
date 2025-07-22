@@ -7,6 +7,9 @@ roller_df = pd.read_excel("Cylindrical Roller Table.xlsx")
 tolerance_df = pd.read_excel("Roller_Tolerances_SKF.xlsx")
 ira_df = pd.read_excel("Cylindrical Roller Bearings.xlsx")
 
+ira_df.columns = ira_df.columns.str.lower().str.strip().str.replace(" ", "_")
+
+
 # Convert necessary columns to numeric
 ira_df['inner_diameter'] = pd.to_numeric(ira_df['inner_diameter'], errors='coerce')
 ira_df['outer_diameter'] = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
