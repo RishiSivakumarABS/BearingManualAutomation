@@ -17,7 +17,7 @@ ira_df['width'] = pd.to_numeric(ira_df['width'], errors='coerce')
 ira_df['f'] = pd.to_numeric(ira_df['f'], errors='coerce')
 
 # Drop rows with any NaN
-ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'width', 'F'], inplace=True)
+ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'width', 'f'], inplace=True)
 
 
 # Normalize roller table column names
@@ -76,7 +76,7 @@ if st.session_state["proceed_clicked"]:
      (ira_df['width'] - B).abs()).idxmin()
 ]
 
-    F = ira_match['F']
+    F = ira_match['f']
     ira_half = F / 2
     roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
     st.write(f"- Closest IRa (F): `{F:.2f} mm`")
