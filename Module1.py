@@ -7,6 +7,11 @@ roller_df = pd.read_excel("Cylindrical Roller Table.xlsx")
 tolerance_df = pd.read_excel("Roller_Tolerances_SKF.xlsx")
 ira_df = pd.read_excel("Cylindrical Roller Bearings.xlsx")
 
+ira_df['d'] = pd.to_numeric(ira_df['d'], errors='coerce')
+ira_df['d.1'] = pd.to_numeric(ira_df['d.1'], errors='coerce')  # This is actually outer diameter D
+ira_df['b'] = pd.to_numeric(ira_df['b'], errors='coerce')
+ira_df['f'] = pd.to_numeric(ira_df['f'], errors='coerce')
+
 # Normalize column names
 roller_df.columns = [col.strip().lower().replace(" ", "_") for col in roller_df.columns]
 ira_df.columns = ira_df.columns.str.lower()
@@ -58,7 +63,9 @@ if st.session_state["proceed_clicked"]:
     st.markdown(f"### 🎯 Pitch Diameter = `{pitch_dia:.2f} mm`")
 
     # Find closest IRa (F) from new table
-    ira_match = ira_df.loc[((ira_df['d'] - d).abs() + (ira_df['d'] - d).abs() + (ira_df['b'] - B).abs()).idxmin()]
+    ira_match = ira_df.loc[
+    ((ira_df['d'] - d).abs() + (ira_df['d.1'] - D).abs() + (ira_df['b'] - B).abs()).idxmin()
+]
     F = ira_match['f']
     ira_half = F / 2
     roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
