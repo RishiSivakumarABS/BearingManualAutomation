@@ -7,23 +7,16 @@ roller_df = pd.read_excel("Cylindrical Roller Table.xlsx")
 tolerance_df = pd.read_excel("Roller_Tolerances_SKF.xlsx")
 ira_df = pd.read_excel("Cylindrical Roller Bearings.xlsx")
 
-ira_df.columns = ira_df.columns.str.lower().str.strip().str.replace(" ", "_")
-
-
-# Convert necessary columns to numeric
+# Clean up IRA table column types
 ira_df['inner_diameter'] = pd.to_numeric(ira_df['inner_diameter'], errors='coerce')
 ira_df['outer_diameter'] = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
-ira_df['width'] = pd.to_numeric(ira_df['width'], errors='coerce')
 ira_df['f'] = pd.to_numeric(ira_df['f'], errors='coerce')
+ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'f'], inplace=True)
 
-# Drop rows with any NaN
-ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'width', 'f'], inplace=True)
-
-
-# Normalize roller table column names
+# Normalize roller table columns
 roller_df.columns = [col.strip().lower().replace(" ", "_") for col in roller_df.columns]
 
-# Streamlit config
+# Streamlit setup
 st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
 st.title("🛠️ ABS Bearing Design Automation Tool")
 st.markdown("This tool helps design custom Four-Row Cylindrical Roller Bearings based on real input constraints.")
@@ -33,7 +26,7 @@ st.markdown("---")
 if "proceed_clicked" not in st.session_state:
     st.session_state["proceed_clicked"] = False
 
-# Section 1: Inputs
+# Input section
 with st.container():
     st.subheader("📐 Bearing Geometry")
     col1, col2 = st.columns(2)
@@ -57,9 +50,11 @@ with st.container():
 
 st.markdown("---")
 
+# Proceed button
 if st.button("✅ Proceed to Design Calculations"):
     st.session_state["proceed_clicked"] = True
 
+# Main logic
 if st.session_state["proceed_clicked"]:
     st.success("Inputs captured successfully!")
     st.write("### 📋 Input Summary")
@@ -69,41 +64,39 @@ if st.session_state["proceed_clicked"]:
     pitch_dia = (d + D) / 2
     st.markdown(f"### 🎯 Pitch Diameter = `{pitch_dia:.2f} mm`")
 
-    # Find closest IRa (F)
-    ira_match = ira_df.loc[
-    ((ira_df['inner_diameter'] - d).abs() +
-     (ira_df['outer_diameter'] - D).abs() +
-     (ira_df['width'] - B).abs()).idxmin()
-]
-
+    # Match closest IRa (F) using d & D only
+    ira_match = ira_df.loc[((ira_df['inner_diameter'] - d).abs() +
+                            (ira_df['outer_diameter'] - D).abs()).idxmin()]
     F = ira_match['f']
     ira_half = F / 2
     roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
     st.write(f"- Closest IRa (F): `{F:.2f} mm`")
     st.write(f"- Max Roller Diameter Allowed: `{roller_max_possible:.2f} mm`")
 
-    # Suggest roller(s) from SKF table
+    # Suggest roller(s)
     roller_df_filtered = roller_df[(roller_df['dw'] <= roller_max_possible) & (roller_df['lw'] <= B)]
 
     if roller_df_filtered.empty:
         st.error("❌ No rollers available below max roller diameter and width.")
     else:
-        roller_df_filtered['diff'] = abs(roller_df_filtered['dw'] - roller_max_possible)
-        best_dw = roller_df_filtered.sort_values(['diff', 'lw']).groupby('dw').first().reset_index()
-        st.success("✅ Recommended Rollers")
-        st.dataframe(best_dw[['dw', 'lw', 'r_min', 'r_max', 'mass_per_100']])
+        # Sort by largest dw for max capacity
+        roller_df_filtered = roller_df_filtered.sort_values(by=['dw'], ascending=False)
+        top_dw = roller_df_filtered['dw'].iloc[0]
+        top_rollers = roller_df_filtered[roller_df_filtered['dw'] == top_dw]
 
-        # Select preferred
-        selected_dw = best_dw.iloc[0]['dw']
-        selected_lw = best_dw.iloc[0]['lw']
-        r_min = best_dw.iloc[0]['r_min']
-        r_max = best_dw.iloc[0]['r_max']
-        selected_mass = best_dw.iloc[0]['mass_per_100']
+        st.success("✅ Recommended Rollers (Closest to Max Diameter)")
+        st.dataframe(top_rollers[['dw', 'lw', 'r_min', 'r_max', 'mass_per_100']])
+
+        selected_dw = top_rollers.iloc[0]['dw']
+        selected_lw = top_rollers.iloc[0]['lw']
+        r_min = top_rollers.iloc[0]['r_min']
+        r_max = top_rollers.iloc[0]['r_max']
+        selected_mass = top_rollers.iloc[0]['mass_per_100']
         space_bw_rollers = roller_max_possible - selected_dw
 
         st.info(f"Selected: Dw = {selected_dw}, Lw = {selected_lw}, Space b/w rollers = {space_bw_rollers:.2f} mm")
 
-        # Z Calculation
+        # Z calculation
         try:
             Z = int(np.pi / np.arcsin(selected_dw / pitch_dia))
             st.write(f"- Number of rollers (Z): `{Z}`")
@@ -111,7 +104,7 @@ if st.session_state["proceed_clicked"]:
             st.error("❌ Invalid configuration: asin out of domain. Adjust Dw or Dpw.")
             Z = 0
 
-        # Input: number of rows (i)
+        # Number of rows input
         i = st.number_input("🔢 Number of Roller Rows (i)", min_value=1, max_value=8, value=4)
 
         # Load fc table
