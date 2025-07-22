@@ -14,7 +14,7 @@ ira_df.columns = ira_df.columns.str.lower().str.strip().str.replace(" ", "_")
 ira_df['inner_diameter'] = pd.to_numeric(ira_df['inner_diameter'], errors='coerce')
 ira_df['outer_diameter'] = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
 ira_df['width'] = pd.to_numeric(ira_df['width'], errors='coerce')
-ira_df['F'] = pd.to_numeric(ira_df['F'], errors='coerce')
+ira_df['f'] = pd.to_numeric(ira_df['f'], errors='coerce')
 
 # Drop rows with any NaN
 ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'width', 'F'], inplace=True)
