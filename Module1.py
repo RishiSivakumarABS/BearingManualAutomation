@@ -13,7 +13,7 @@ def interpolate_ira_F(d, D, ira_df):
     # Try exact match
     exact = ira_df[(ira_df['inner_diameter'] == d) & (ira_df['outer_diameter'] == D)]
     if not exact.empty:
-        return exact.iloc[0]['f'], "Exact Match"
+        return exact.iloc[0]['F'], "Exact Match"
 
     # Try 1D interpolation over D at nearest d
     d_unique = np.sort(ira_df['inner_diameter'].unique())
@@ -27,8 +27,8 @@ def interpolate_ira_F(d, D, ira_df):
         subset2 = ira_df[ira_df['inner_diameter'] == d2].sort_values('outer_diameter')
 
         if not subset1.empty and not subset2.empty:
-            f1 = np.interp(D, subset1['outer_diameter'], subset1['f'])
-            f2 = np.interp(D, subset2['outer_diameter'], subset2['f'])
+            f1 = np.interp(D, subset1['outer_diameter'], subset1['F'])
+            f2 = np.interp(D, subset2['outer_diameter'], subset2['F'])
             # Linear interpolation over d
             F_interp = f1 + ((d - d1) / (d2 - d1)) * (f2 - f1)
             return F_interp, "Interpolated from (d1, d2) and (D1, D2)"
@@ -37,13 +37,12 @@ def interpolate_ira_F(d, D, ira_df):
     same_d_rows = ira_df[np.isclose(ira_df['inner_diameter'], d, atol=2)]
     if not same_d_rows.empty:
         same_d_rows = same_d_rows.sort_values('outer_diameter')
-        F_interp = np.interp(D, same_d_rows['outer_diameter'], same_d_rows['f'])
+        F_interp = np.interp(D, same_d_rows['outer_diameter'], same_d_rows['F'])
         return F_interp, "Interpolated over D"
 
     # Fallback to closest
     closest = ira_df.loc[((ira_df['inner_diameter'] - d).abs() + (ira_df['outer_diameter'] - D).abs()).idxmin()]
-    return closest['f'], "Closest Match"
-
+    return closest['F'], "Closest Match"
 
 # Clean up IRA table column types
 ira_df['inner_diameter'] = pd.to_numeric(ira_df['inner_diameter'], errors='coerce')
@@ -101,21 +100,17 @@ if st.session_state["proceed_clicked"]:
 
     # Pitch diameter
     pitch_dia = (d + D) / 2
-    st.markdown(f"### 🎯 Pitch Diameter = `{pitch_dia:.2f} mm`")
+    st.markdown(f"### 🎯 Pitch Diameter = {pitch_dia:.2f} mm")
 
     # Match closest IRa (F) using d & D only
     # Find F using interpolation logic
     F, match_type = interpolate_ira_F(d, D, ira_df)
-    if "Exact Match" in match_type:
-        st.write(f"✅ IRa found in table: `{F:.2f} mm`")
-    else:
-        st.write(f"ℹ️ IRa not found — estimated IRa by interpolation: `{F:.2f} mm`")
-
+    st.write(f"- {match_type} IRa (F): {F:.2f} mm")
 
     ira_half = F / 2
     roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
-    st.write(f"- Closest IRa (F): `{F:.2f} mm`")
-    st.write(f"- Max Roller Diameter Allowed: `{roller_max_possible:.2f} mm`")
+    st.write(f"- Closest IRa (F): {F:.2f} mm")
+    st.write(f"- Max Roller Diameter Allowed: {roller_max_possible:.2f} mm")
 
     # Suggest roller(s)
     roller_df_filtered = roller_df[(roller_df['dw'] <= roller_max_possible) & (roller_df['lw'] <= B)]
@@ -143,7 +138,7 @@ if st.session_state["proceed_clicked"]:
         # Z calculation
         try:
             Z = int(np.pi / np.arcsin(selected_dw / pitch_dia))
-            st.write(f"- Number of rollers (Z): `{Z}`")
+            st.write(f"- Number of rollers (Z): {Z}")
         except ValueError:
             st.error("❌ Invalid configuration: asin out of domain. Adjust Dw or Dpw.")
             Z = 0
