@@ -63,8 +63,10 @@ if st.session_state["proceed_clicked"]:
     st.markdown(f"### 🎯 Pitch Diameter = `{pitch_dia:.2f} mm`")
 
     # Interpolated F based on d and D
-    lower = ira_df[(ira_df['inner_diameter'] <= d) & (ira_df['outer_diameter'] <= D)].sort_values(by=['inner_diameter', 'outer_diameter'], ascending=False).head(1)
-    upper = ira_df[(ira_df['inner_diameter'] >= d) & (ira_df['outer_diameter'] >= D)].sort_values(by=['inner_diameter', 'outer_diameter'], ascending=True).head(1)
+    lower = ira_df[(ira_df['inner_diameter'] <= d) & (ira_df['outer_diameter'] <= D)].sort_values(
+        by=['inner_diameter', 'outer_diameter'], ascending=False).head(1)
+    upper = ira_df[(ira_df['inner_diameter'] >= d) & (ira_df['outer_diameter'] >= D)].sort_values(
+        by=['inner_diameter', 'outer_diameter'], ascending=True).head(1)
 
     if not lower.empty and not upper.empty:
         x0, y0, f0 = lower.iloc[0][['inner_diameter', 'outer_diameter', 'f']]
@@ -76,49 +78,48 @@ if st.session_state["proceed_clicked"]:
 
     ira_half = F / 2
     roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
+    adjusted_dw_limit = roller_max_possible - 0.02 * pitch_dia
+
     st.write(f"- Interpolated F: `{F:.2f} mm`")
     st.write(f"- Max Roller Diameter Allowed: `{roller_max_possible:.2f} mm`")
+    st.write(f"- Adjusted Dw Limit (2% pitch dia margin): `{adjusted_dw_limit:.2f} mm`")
 
-    # Recommend best-fitting roller
-    roller_df_filtered = roller_df[(roller_df['dw'] <= roller_max_possible) & (roller_df['lw'] <= B)].copy()
+    # Filter and select best roller
+    valid_rollers = roller_df[(roller_df['dw'] <= adjusted_dw_limit) & (roller_df['lw'] <= B)]
 
-    if roller_df_filtered.empty:
-        st.error("❌ No rollers available below max roller diameter and width.")
+    if valid_rollers.empty:
+        st.error("❌ No valid roller found after applying 2% pitch diameter margin.")
     else:
-        roller_df_filtered['dw_diff'] = (roller_df_filtered['dw'] - roller_max_possible).abs()
-        top_dw = roller_df_filtered.loc[roller_df_filtered['dw_diff'].idxmin(), 'dw']
-        top_rollers = roller_df_filtered[roller_df_filtered['dw'] == top_dw]
+        # Choose roller with max dw, then max lw
+        top_dw = valid_rollers['dw'].max()
+        best_rollers = valid_rollers[valid_rollers['dw'] == top_dw]
+        selected = best_rollers.loc[best_rollers['lw'].idxmax()]
 
-        st.success("✅ Recommended Rollers (Closest to Max Diameter)")
-        st.dataframe(top_rollers[['dw', 'lw', 'r_min', 'r_max', 'mass_per_100']])
-
-        selected_dw = top_rollers.iloc[0]['dw']
-        selected_lw = top_rollers.iloc[0]['lw']
-        r_min = top_rollers.iloc[0]['r_min']
-        r_max = top_rollers.iloc[0]['r_max']
-        selected_mass = top_rollers.iloc[0]['mass_per_100']
-
+        selected_dw = selected['dw']
+        selected_lw = selected['lw']
+        r_min = selected['r_min']
+        r_max = selected['r_max']
+        selected_mass = selected['mass_per_100']
         space_bw_rollers = roller_max_possible - selected_dw
-        
 
+        st.success("✅ Selected Roller")
+        st.dataframe(pd.DataFrame([selected[['dw', 'lw', 'r_min', 'r_max', 'mass_per_100']]]))
+        st.info(f"Selected: Dw = {selected_dw}, Lw = {selected_lw}, Space b/w rollers = {space_bw_rollers:.2f} mm")
 
         # Z calculation
         try:
             Z = int(np.pi / np.arcsin(selected_dw / pitch_dia))
-            st.markdown(f"**{Z}**")
+            st.write(f"- Number of rollers (Z): `{Z}`")
         except ValueError:
             st.error("❌ Invalid configuration: asin out of domain. Adjust Dw or Dpw.")
             Z = 0
 
-        st.info(f"Selected: Dw = {selected_dw}, Lw = {selected_lw}, Z = {Z}")
         # Number of rows
         i = st.number_input("🔢 Number of Roller Rows (i)", min_value=1, max_value=8, value=4)
 
         # Load fc table
         fc_df = pd.read_excel("ISO_Table_7_fc_values.xlsx")
         fc_df.columns = fc_df.columns.str.lower()
-
-        # Interpolate fc
         fc_ratio = selected_dw / pitch_dia
         fc_ratio = np.clip(fc_ratio, fc_df["dwe_cos_alpha_over_dpw"].min(), fc_df["dwe_cos_alpha_over_dpw"].max())
         fc = np.interp(fc_ratio, fc_df["dwe_cos_alpha_over_dpw"], fc_df["fc"])
