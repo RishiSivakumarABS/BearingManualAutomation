@@ -33,7 +33,7 @@ with st.container():
     col1, col2 = st.columns(2)
     with col1:
         d = st.number_input("🔩 Inner Diameter (d) [mm]", min_value=50.0, max_value=1000.0, value=280.0)
-        B = st.number_input("u2194️ Available Width (B) [mm]", min_value=10.0, max_value=500.0, value=220.0)
+        B = st.number_input(" Available Width (B) [mm]", min_value=10.0, max_value=500.0, value=220.0)
     with col2:
         D = st.number_input("🏠 Outer Diameter (D) [mm]", min_value=d + 10, max_value=1200.0, value=390.0)
 
@@ -99,7 +99,8 @@ if st.session_state["proceed_clicked"]:
         selected_mass = top_rollers.iloc[0]['mass_per_100']
 
         space_bw_rollers = roller_max_possible - selected_dw
-        st.info(f"Selected: Dw = {selected_dw}, Lw = {selected_lw}, Z = ", end="")
+        st.info(f"Selected: Dw = {selected_dw}, Lw = {selected_lw}, Z = {Z}")
+
 
         # Z calculation
         try:
