@@ -10,8 +10,8 @@ ira_df = pd.read_excel("Cylindrical Roller Bearings.xlsx")
 # Clean up IRA table column types
 ira_df['inner_diameter'] = pd.to_numeric(ira_df['inner_diameter'], errors='coerce')
 ira_df['outer_diameter'] = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
-ira_df['F'] = pd.to_numeric(ira_df['f'], errors='coerce')
-ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'f'], inplace=True)
+ira_df['F'] = pd.to_numeric(ira_df['F'], errors='coerce')
+ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'F'], inplace=True)
 
 # Normalize roller table columns
 roller_df.columns = [col.strip().lower().replace(" ", "_") for col in roller_df.columns]
@@ -34,9 +34,7 @@ with st.container():
         d = st.number_input("🔩 Inner Diameter (d) [mm]", min_value=50.0, max_value=1000.0, value=180.0)
         B = st.number_input("↔️ Available Width (B) [mm]", min_value=10.0, max_value=500.0, value=160.0)
     with col2:
-        D_default = max(250.0, d + 10)
-        D = st.number_input("🏠 Outer Diameter (D) [mm]", min_value=d + 10, max_value=1200.0, value=D_default)
-
+        D = st.number_input("🏠 Outer Diameter (D) [mm]", min_value=d + 10, max_value=1200.0, value=250.0)
 
 st.markdown("---")
 
@@ -69,7 +67,7 @@ if st.session_state["proceed_clicked"]:
     # Match closest IRa (F) using d & D only
     ira_match = ira_df.loc[((ira_df['inner_diameter'] - d).abs() +
                             (ira_df['outer_diameter'] - D).abs()).idxmin()]
-    F = ira_match['f']
+    F = ira_match['F']
     ira_half = F / 2
     roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
     st.write(f"- Closest IRa (F): `{F:.2f} mm`")
