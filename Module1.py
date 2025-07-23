@@ -99,7 +99,7 @@ if st.session_state["proceed_clicked"]:
         selected_mass = top_rollers.iloc[0]['mass_per_100']
 
         space_bw_rollers = roller_max_possible - selected_dw
-        st.info(f"Selected: Dw = {selected_dw}, Lw = {selected_lw}, Z = {Z}")
+        
 
 
         # Z calculation
@@ -110,6 +110,7 @@ if st.session_state["proceed_clicked"]:
             st.error("❌ Invalid configuration: asin out of domain. Adjust Dw or Dpw.")
             Z = 0
 
+        st.info(f"Selected: Dw = {selected_dw}, Lw = {selected_lw}, Z = {Z}")
         # Number of rows
         i = st.number_input("🔢 Number of Roller Rows (i)", min_value=1, max_value=8, value=4)
 
