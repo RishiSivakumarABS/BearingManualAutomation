@@ -7,47 +7,10 @@ roller_df = pd.read_excel("Cylindrical Roller Table.xlsx")
 tolerance_df = pd.read_excel("Roller_Tolerances_SKF.xlsx")
 ira_df = pd.read_excel("Cylindrical Roller Bearings.xlsx")
 
-ira_df.columns = ira_df.columns.str.lower().str.strip().str.replace(" ", "_")
-
-def interpolate_ira_F(d, D, ira_df):
-    # Try exact match
-    exact = ira_df[(ira_df['inner_diameter'] == d) & (ira_df['outer_diameter'] == D)]
-    if not exact.empty:
-        return exact.iloc[0]['F'], "Exact Match"
-
-    # Try 1D interpolation over D at nearest d
-    d_unique = np.sort(ira_df['inner_diameter'].unique())
-    d_below = d_unique[d_unique <= d]
-    d_above = d_unique[d_unique > d]
-
-    if len(d_below) > 0 and len(d_above) > 0:
-        d1 = d_below[-1]
-        d2 = d_above[0]
-        subset1 = ira_df[ira_df['inner_diameter'] == d1].sort_values('outer_diameter')
-        subset2 = ira_df[ira_df['inner_diameter'] == d2].sort_values('outer_diameter')
-
-        if not subset1.empty and not subset2.empty:
-            f1 = np.interp(D, subset1['outer_diameter'], subset1['F'])
-            f2 = np.interp(D, subset2['outer_diameter'], subset2['F'])
-            # Linear interpolation over d
-            F_interp = f1 + ((d - d1) / (d2 - d1)) * (f2 - f1)
-            return F_interp, "Interpolated from (d1, d2) and (D1, D2)"
-
-    # Try 1D fallback: only same d
-    same_d_rows = ira_df[np.isclose(ira_df['inner_diameter'], d, atol=2)]
-    if not same_d_rows.empty:
-        same_d_rows = same_d_rows.sort_values('outer_diameter')
-        F_interp = np.interp(D, same_d_rows['outer_diameter'], same_d_rows['F'])
-        return F_interp, "Interpolated over D"
-
-    # Fallback to closest
-    closest = ira_df.loc[((ira_df['inner_diameter'] - d).abs() + (ira_df['outer_diameter'] - D).abs()).idxmin()]
-    return closest['F'], "Closest Match"
-
 # Clean up IRA table column types
 ira_df['inner_diameter'] = pd.to_numeric(ira_df['inner_diameter'], errors='coerce')
 ira_df['outer_diameter'] = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
-ira_df['f'] = pd.to_numeric(ira_df['f'], errors='coerce')
+ira_df['F'] = pd.to_numeric(ira_df['f'], errors='coerce')
 ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'f'], inplace=True)
 
 # Normalize roller table columns
@@ -73,6 +36,7 @@ with st.container():
     with col2:
         D_default = max(250.0, d + 10)
         D = st.number_input("🏠 Outer Diameter (D) [mm]", min_value=d + 10, max_value=1200.0, value=D_default)
+
 
 st.markdown("---")
 
@@ -100,17 +64,16 @@ if st.session_state["proceed_clicked"]:
 
     # Pitch diameter
     pitch_dia = (d + D) / 2
-    st.markdown(f"### 🎯 Pitch Diameter = {pitch_dia:.2f} mm")
+    st.markdown(f"### 🎯 Pitch Diameter = `{pitch_dia:.2f} mm`")
 
     # Match closest IRa (F) using d & D only
-    # Find F using interpolation logic
-    F, match_type = interpolate_ira_F(d, D, ira_df)
-    st.write(f"- {match_type} IRa (F): {F:.2f} mm")
-
+    ira_match = ira_df.loc[((ira_df['inner_diameter'] - d).abs() +
+                            (ira_df['outer_diameter'] - D).abs()).idxmin()]
+    F = ira_match['f']
     ira_half = F / 2
     roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
-    st.write(f"- Closest IRa (F): {F:.2f} mm")
-    st.write(f"- Max Roller Diameter Allowed: {roller_max_possible:.2f} mm")
+    st.write(f"- Closest IRa (F): `{F:.2f} mm`")
+    st.write(f"- Max Roller Diameter Allowed: `{roller_max_possible:.2f} mm`")
 
     # Suggest roller(s)
     roller_df_filtered = roller_df[(roller_df['dw'] <= roller_max_possible) & (roller_df['lw'] <= B)]
@@ -138,7 +101,7 @@ if st.session_state["proceed_clicked"]:
         # Z calculation
         try:
             Z = int(np.pi / np.arcsin(selected_dw / pitch_dia))
-            st.write(f"- Number of rollers (Z): {Z}")
+            st.write(f"- Number of rollers (Z): `{Z}`")
         except ValueError:
             st.error("❌ Invalid configuration: asin out of domain. Adjust Dw or Dpw.")
             Z = 0
