@@ -13,8 +13,8 @@ ira_df.columns = ira_df.columns.str.strip().str.lower().str.replace(" ", "_")
 # Clean up IRA table column types
 ira_df['inner_diameter'] = pd.to_numeric(ira_df['inner_diameter'], errors='coerce')
 ira_df['outer_diameter'] = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
-ira_df['F'] = pd.to_numeric(ira_df['F'], errors='coerce')
-ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'F'], inplace=True)
+ira_df['F'] = pd.to_numeric(ira_df['f'], errors='coerce')
+ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'f'], inplace=True)
 
 # Normalize roller table columns
 roller_df.columns = [col.strip().lower().replace(" ", "_") for col in roller_df.columns]
