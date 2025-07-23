@@ -105,7 +105,11 @@ if st.session_state["proceed_clicked"]:
     # Match closest IRa (F) using d & D only
     # Find F using interpolation logic
     F, match_type = interpolate_ira_F(d, D, ira_df)
-    st.write(f"- {match_type} IRa (F): `{F:.2f} mm`")
+    if "Exact Match" in match_type:
+        st.write(f"✅ IRa found in table: `{F:.2f} mm`")
+    else:
+        st.write(f"ℹ️ IRa not found — estimated IRa by interpolation: `{F:.2f} mm`")
+
 
     ira_half = F / 2
     roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
