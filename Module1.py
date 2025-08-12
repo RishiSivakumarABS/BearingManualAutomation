@@ -13,7 +13,7 @@ roller_df.columns = roller_df.columns.str.strip().str.lower().str.replace(" ", "
 
 # Convert columns to numeric
 ira_df['inner_diameter'] = pd.to_numeric(ira_df['inner_diameter'], errors='coerce')
-ira_df['outer_diameter'] = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
+ira_df['outer_diameter']  = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
 ira_df['f'] = pd.to_numeric(ira_df['f'], errors='coerce')
 ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'f'], inplace=True)
 
@@ -42,7 +42,7 @@ with st.container():
     st.subheader("⚙️ Operating Conditions")
     col3, col4 = st.columns(2)
     with col3:
-        Fr = st.number_input("📏 Radial Load (Fr) [kN]", min_value=0.0, value=1980.0)
+        Fr  = st.number_input("📏 Radial Load (Fr) [kN]", min_value=0.0, value=1980.0)
         RPM = st.number_input("⏱️ Speed (RPM)", min_value=0, value=500)
     with col4:
         Fa = st.number_input("📏 Axial Load (Fa) [kN]", min_value=0.0, value=50.0)
@@ -61,52 +61,67 @@ if st.session_state["proceed_clicked"]:
     pitch_dia = (d + D) / 2
     st.markdown(f"### 🎯 Pitch Diameter = `{pitch_dia:.2f} mm`")
 
-    # Interpolated F
-    lower = ira_df[(ira_df['inner_diameter'] <= d) & (ira_df['outer_diameter'] <= D)].sort_values(by=['inner_diameter', 'outer_diameter'], ascending=False).head(1)
-    upper = ira_df[(ira_df['inner_diameter'] >= d) & (ira_df['outer_diameter'] >= D)].sort_values(by=['inner_diameter', 'outer_diameter'], ascending=True).head(1)
+    # ---------- Interpolate F from table ----------
+    lower = ira_df[(ira_df['inner_diameter'] <= d) & (ira_df['outer_diameter'] <= D)].sort_values(
+        by=['inner_diameter', 'outer_diameter'], ascending=False).head(1)
+    upper = ira_df[(ira_df['inner_diameter'] >= d) & (ira_df['outer_diameter'] >= D)].sort_values(
+        by=['inner_diameter', 'outer_diameter'], ascending=True).head(1)
 
     if not lower.empty and not upper.empty:
         x0, y0, f0 = lower.iloc[0][['inner_diameter', 'outer_diameter', 'f']]
         x1, y1, f1 = upper.iloc[0][['inner_diameter', 'outer_diameter', 'f']]
         weight = ((d - x0) + (D - y0)) / ((x1 - x0) + (y1 - y0) + 1e-6)
-        F = f0 + weight * (f1 - f0)
+        F_interpolated = float(f0 + weight * (f1 - f0))
     else:
-        F = ira_df.loc[((ira_df['inner_diameter'] - d).abs() + (ira_df['outer_diameter'] - D).abs()).idxmin(), 'f']
+        F_interpolated = float(ira_df.loc[
+            ((ira_df['inner_diameter'] - d).abs() + (ira_df['outer_diameter'] - D).abs()).idxmin(), 'f'
+        ])
 
-    ira_half = F / 2
-    roller_max_possible = 2 * ((pitch_dia / 2) - ira_half)
-    st.write(f"- Interpolated F: `{F:.2f} mm`")
+    # ---------- Manual override control for F ----------
+    st.write(f"- Interpolated F: `{F_interpolated:.2f} mm`")
+    use_override = st.checkbox("Override F manually")
+    if use_override:
+        F_used = st.number_input("Enter F [mm]", min_value=0.0, value=round(F_interpolated, 2), step=0.01,
+                                 help="Override the interpolated F. All downstream calculations will use this value.")
+    else:
+        F_used = F_interpolated
+    st.write(f"- F used in calculations: `{F_used:.2f} mm`")
+
+    # ---------- Geometry from F (used value) ----------
+    ira_half = F_used / 2.0
+    roller_max_possible = 2.0 * ((pitch_dia / 2.0) - ira_half)
     st.write(f"- Max Roller Diameter Allowed: `{roller_max_possible:.2f} mm`")
 
-    # Calculate Z using roller_max_possible (not adjusted)
+    # Z is computed from the *max* possible roller diameter (as requested)
     try:
         Z = int(np.pi / np.arcsin(roller_max_possible / pitch_dia))
     except ValueError:
         st.error("❌ Invalid configuration: asin out of domain.")
         Z = 0
 
-    # Adjust max allowed for selection
+    # Apply 2% pitch-diameter margin *only for catalog selection*
     adjusted_max_dw = roller_max_possible - (0.02 * pitch_dia)
     st.write(f"- Adjusted Max Dw for Selection: `{adjusted_max_dw:.2f} mm`")
 
-    # Select roller
+    # ---------- Select roller from catalog ----------
     roller_df_filtered = roller_df[(roller_df['dw'] <= adjusted_max_dw) & (roller_df['lw'] <= B)].copy()
 
     if roller_df_filtered.empty:
         st.error("❌ No rollers available for the adjusted conditions.")
     else:
+        # Choose largest Dw, and among those, the largest Lw
         top_dw = roller_df_filtered['dw'].max()
-        top_candidates = roller_df_filtered[roller_df_filtered['dw'] == top_dw]
-        top_roller = top_candidates.sort_values(by='lw', ascending=False).iloc[0]
+        top_roller = roller_df_filtered[roller_df_filtered['dw'] == top_dw].sort_values('lw', ascending=False).iloc[0]
 
-        selected_dw = top_roller['dw']
-        selected_lw = top_roller['lw']
-        r_max = top_roller['r_max']
+        selected_dw = float(top_roller['dw'])
+        selected_lw = float(top_roller['lw'])
+        r_max = float(top_roller['r_max'])
         r = 0.75 * r_max
-        Lwe = selected_lw - 2 * r
+        Lwe = selected_lw - 2.0 * r
 
         st.info(f"Selected: Dw = {selected_dw}, Lw = {selected_lw}, r = {r:.2f}, Lwe = {Lwe:.2f}, Z = {Z}")
 
+        # ---------- Load rating calculations ----------
         i = st.number_input("🔢 Number of Roller Rows (i)", min_value=1, max_value=8, value=4)
 
         fc_df = pd.read_excel("ISO_Table_7_fc_values.xlsx")
@@ -116,8 +131,8 @@ if st.session_state["proceed_clicked"]:
         fc = np.interp(fc_ratio, fc_df["dwe_cos_alpha_over_dpw"], fc_df["fc"])
 
         bm = 1.1
-        Cr = bm * fc * ((i * Lwe) ** (7 / 9)) * (Z ** (3 / 4)) * (selected_dw ** (29 / 27))
-        Cor = 44 * (1 - (selected_dw / pitch_dia)) * i * Z * Lwe * selected_dw
+        Cr = bm * fc * ((i * Lwe) ** (7.0 / 9.0)) * (Z ** (3.0 / 4.0)) * (selected_dw ** (29.0 / 27.0))
+        Cor = 44.0 * (1.0 - (selected_dw / pitch_dia)) * i * Z * Lwe * selected_dw
 
         st.success(f"**Cr = {Cr:,.2f} N**")
         st.success(f"**Cor = {Cor:,.2f} N**")
