@@ -81,8 +81,10 @@ if st.session_state["proceed_clicked"]:
     st.write(f"- Interpolated F: `{F_interpolated:.2f} mm`")
     use_override = st.checkbox("Override F manually")
     if use_override:
-        F_used = st.number_input("Enter F [mm]", min_value=0.0, value=round(F_interpolated, 2), step=0.01,
-                                 help="Override the interpolated F. All downstream calculations will use this value.")
+        F_used = st.number_input(
+            "Enter F [mm]", min_value=0.0, value=round(F_interpolated, 2), step=0.01,
+            help="Override the interpolated F. All downstream calculations will use this value."
+        )
     else:
         F_used = F_interpolated
     st.write(f"- F used in calculations: `{F_used:.2f} mm`")
@@ -109,13 +111,31 @@ if st.session_state["proceed_clicked"]:
     if roller_df_filtered.empty:
         st.error("❌ No rollers available for the adjusted conditions.")
     else:
-        # Choose largest Dw, and among those, the largest Lw
+        # Largest Dw that fits
         top_dw = roller_df_filtered['dw'].max()
-        top_roller = roller_df_filtered[roller_df_filtered['dw'] == top_dw].sort_values('lw', ascending=False).iloc[0]
+        candidates = roller_df_filtered[roller_df_filtered['dw'] == top_dw].sort_values('lw', ascending=False).reset_index(drop=True)
 
-        selected_dw = float(top_roller['dw'])
-        selected_lw = float(top_roller['lw'])
-        r_max = float(top_roller['r_max'])
+        # Show all candidates with same Dw and let the user pick
+        st.success("✅ Recommended Rollers (same Dw, choose one)")
+        st.dataframe(candidates[['dw', 'lw', 'r_min', 'r_max', 'mass_per_100']])
+
+        # Build nice labels for selection
+        option_labels = [
+            f"Option {i+1}: Lw={row.lw} mm | r_min={row.r_min} mm | r_max={row.r_max} mm | mass/100={row.mass_per_100}"
+            for i, row in candidates.iterrows()
+        ]
+        choice_idx = st.selectbox(
+            "Pick a roller option (same Dw)",
+            options=list(range(len(option_labels))),
+            format_func=lambda i: option_labels[i],
+            index=0
+        )
+
+        chosen = candidates.iloc[choice_idx]
+
+        selected_dw = float(chosen['dw'])
+        selected_lw = float(chosen['lw'])
+        r_max = float(chosen['r_max'])
         r = 0.75 * r_max
         Lwe = selected_lw - 2.0 * r
 
