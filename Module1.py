@@ -2,39 +2,150 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# Load data
+# =========================
+# Helpers
+# =========================
+def normalize_cols(df):
+    df = df.copy()
+    df.columns = (
+        pd.Index(df.columns)
+        .map(lambda x: " ".join([str(p) for p in x if str(p) != "nan"]) if isinstance(x, tuple) else str(x))
+        .str.strip().str.lower().str.replace(r"\s+", "_", regex=True)
+    )
+    return df
+
+def find_col(df, *contains):
+    """Find a column whose name includes all 'contains' tokens (case-insensitive)."""
+    for c in df.columns:
+        s = str(c).lower()
+        if all(tok in s for tok in contains):
+            return c
+    return None
+
+def load_catalog(path="SKFCatalog_CRB.xlsx"):
+    # Try reading with multirow header (some SKF sheets have a units row)
+    try:
+        cat = pd.read_excel(path, header=[0,1])
+        cat = normalize_cols(cat)
+    except Exception:
+        cat = pd.read_excel(path)
+        cat = normalize_cols(cat)
+
+    # Map columns by fuzzy matching
+    c_designation = find_col(cat, "designation")
+    c_bore = find_col(cat, "bore", "diameter")
+    c_od = find_col(cat, "outside", "diameter")
+    c_width = find_col(cat, "width")
+    c_c = find_col(cat, "basic", "dynamic", "load") or find_col(cat, "c_") or find_col(cat, "cr")
+
+    needed = [c_designation, c_bore, c_od, c_width]
+    if any(col is None for col in needed):
+        raise ValueError("Could not find required columns in SKFCatalog_CRB.xlsx "
+                         "(need Designation, Bore diameter, Outside diameter, Width).")
+
+    out = cat[[c_designation, c_bore, c_od, c_width] + ([c_c] if c_c else [])].copy()
+    out.columns = ["designation", "d", "D", "B"] + (["C_catalog"] if c_c else [])
+    # Clean numerics
+    for col in ["d", "D", "B", "C_catalog"]:
+        if col in out.columns:
+            out[col] = pd.to_numeric(out[col], errors="coerce")
+    out = out.dropna(subset=["designation", "d", "D", "B"])
+    return out
+
+# =========================
+# Load files
+# =========================
 roller_df = pd.read_excel("Cylindrical Roller Table.xlsx")
 tolerance_df = pd.read_excel("Roller_Tolerances_SKF.xlsx")
 ira_df = pd.read_excel("Cylindrical Roller Bearings.xlsx")
 
-# Normalize column names
-ira_df.columns = ira_df.columns.str.strip().str.lower().str.replace(" ", "_")
-roller_df.columns = roller_df.columns.str.strip().str.lower().str.replace(" ", "_")
+ira_df = normalize_cols(ira_df)
+roller_df = normalize_cols(roller_df)
 
-# Convert columns to numeric
+# Convert IRA columns to numeric
 ira_df['inner_diameter'] = pd.to_numeric(ira_df['inner_diameter'], errors='coerce')
-ira_df['outer_diameter']  = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
+ira_df['outer_diameter'] = pd.to_numeric(ira_df['outer_diameter'], errors='coerce')
 ira_df['f'] = pd.to_numeric(ira_df['f'], errors='coerce')
 ira_df.dropna(subset=['inner_diameter', 'outer_diameter', 'f'], inplace=True)
 
+# =========================
 # Streamlit setup
+# =========================
 st.set_page_config(page_title="ABS Bearing Design Tool", layout="wide")
 st.title("🛠️ ABS Bearing Design Automation Tool")
 st.markdown("This tool helps design custom Four-Row Cylindrical Roller Bearings based on real input constraints.")
 st.markdown("---")
 
+# =========================
+# Catalog selection (NEW)
+# =========================
+with st.expander("📘 Choose a bearing from SKF catalog (optional)", expanded=False):
+    try:
+        catalog = load_catalog("SKFCatalog_CRB.xlsx")
+        # Quick search
+        q = st.text_input("Search designation (contains)", value="")
+        filtered = catalog[catalog["designation"].str.contains(q, case=False, na=False)] if q else catalog
+
+        # Build options label
+        def label_row(row):
+            base = f"{row['designation']}  |  d={row['d']:.0f} mm, D={row['D']:.0f} mm, B={row['B']:.0f} mm"
+            if "C_catalog" in filtered.columns and pd.notna(row["C_catalog"]):
+                base += f"  |  C={row['C_catalog']:.1f} kN"
+            return base
+
+        options = filtered.index.tolist()
+        labels = [label_row(filtered.loc[idx]) for idx in options]
+        chosen_idx = st.selectbox("Catalog result", options=options, format_func=lambda ix: label_row(filtered.loc[ix]) if ix in filtered.index else "")
+
+        colA, colB = st.columns([1,1])
+        with colA:
+            if st.button("Use these dimensions"):
+                row = filtered.loc[chosen_idx]
+                # Prefill session state so the inputs pick these values as defaults
+                st.session_state["geo_d"] = float(row["d"])
+                st.session_state["geo_D"] = float(row["D"])
+                st.session_state["geo_B"] = float(row["B"])
+                st.success(f"Loaded from catalog → d={row['d']:.0f}, D={row['D']:.0f}, B={row['B']:.0f}")
+        with colB:
+            if "C_catalog" in filtered.columns:
+                row = filtered.loc[chosen_idx]
+                if pd.notna(row["C_catalog"]):
+                    st.info(f"Catalog basic dynamic load rating **C = {row['C_catalog']:.1f} kN** (for reference)")
+
+    except Exception as e:
+        st.warning(f"Could not load catalog: {e}")
+
+st.markdown("---")
+
 if "proceed_clicked" not in st.session_state:
     st.session_state["proceed_clicked"] = False
 
+# =========================
 # Inputs
+# =========================
 with st.container():
     st.subheader("📜 Bearing Geometry")
     col1, col2 = st.columns(2)
     with col1:
-        d = st.number_input("🔩 Inner Diameter (d) [mm]", min_value=50.0, max_value=1000.0, value=280.0)
-        B = st.number_input(" Available Width (B) [mm]", min_value=10.0, max_value=500.0, value=220.0)
+        d = st.number_input(
+            "🔩 Inner Diameter (d) [mm]",
+            min_value=50.0, max_value=1000.0,
+            value=float(st.session_state.get("geo_d", 280.0)),
+            key="input_d"
+        )
+        B = st.number_input(
+            " Available Width (B) [mm]",
+            min_value=10.0, max_value=500.0,
+            value=float(st.session_state.get("geo_B", 220.0)),
+            key="input_B"
+        )
     with col2:
-        D = st.number_input("🏠 Outer Diameter (D) [mm]", min_value=d + 10, max_value=1200.0, value=390.0)
+        D = st.number_input(
+            "🏠 Outer Diameter (D) [mm]",
+            min_value=d + 10, max_value=1200.0,
+            value=float(st.session_state.get("geo_D", 390.0)),
+            key="input_D"
+        )
 
 st.markdown("---")
 
@@ -42,7 +153,7 @@ with st.container():
     st.subheader("⚙️ Operating Conditions")
     col3, col4 = st.columns(2)
     with col3:
-        Fr  = st.number_input("📏 Radial Load (Fr) [kN]", min_value=0.0, value=1980.0)
+        Fr = st.number_input("📏 Radial Load (Fr) [kN]", min_value=0.0, value=1980.0)
         RPM = st.number_input("⏱️ Speed (RPM)", min_value=0, value=500)
     with col4:
         Fa = st.number_input("📏 Axial Load (Fa) [kN]", min_value=0.0, value=50.0)
@@ -53,6 +164,9 @@ st.markdown("---")
 if st.button("✅ Proceed to Design Calculations"):
     st.session_state["proceed_clicked"] = True
 
+# =========================
+# Main logic
+# =========================
 if st.session_state["proceed_clicked"]:
     st.success("Inputs captured successfully!")
     st.write("### 📋 Input Summary")
@@ -81,10 +195,8 @@ if st.session_state["proceed_clicked"]:
     st.write(f"- Interpolated F: `{F_interpolated:.2f} mm`")
     use_override = st.checkbox("Override F manually")
     if use_override:
-        F_used = st.number_input(
-            "Enter F [mm]", min_value=0.0, value=round(F_interpolated, 2), step=0.01,
-            help="Override the interpolated F. All downstream calculations will use this value."
-        )
+        F_used = st.number_input("Enter F [mm]", min_value=0.0, value=round(F_interpolated, 2), step=0.01,
+                                 help="Override the interpolated F. All downstream calculations will use this value.")
     else:
         F_used = F_interpolated
     st.write(f"- F used in calculations: `{F_used:.2f} mm`")
@@ -111,31 +223,13 @@ if st.session_state["proceed_clicked"]:
     if roller_df_filtered.empty:
         st.error("❌ No rollers available for the adjusted conditions.")
     else:
-        # Largest Dw that fits
+        # Choose largest Dw, and among those, the largest Lw
         top_dw = roller_df_filtered['dw'].max()
-        candidates = roller_df_filtered[roller_df_filtered['dw'] == top_dw].sort_values('lw', ascending=False).reset_index(drop=True)
+        top_roller = roller_df_filtered[roller_df_filtered['dw'] == top_dw].sort_values('lw', ascending=False).iloc[0]
 
-        # Show all candidates with same Dw and let the user pick
-        st.success("✅ Recommended Rollers (same Dw, choose one)")
-        st.dataframe(candidates[['dw', 'lw', 'r_min', 'r_max', 'mass_per_100']])
-
-        # Build nice labels for selection
-        option_labels = [
-            f"Option {i+1}: Lw={row.lw} mm | r_min={row.r_min} mm | r_max={row.r_max} mm | mass/100={row.mass_per_100}"
-            for i, row in candidates.iterrows()
-        ]
-        choice_idx = st.selectbox(
-            "Pick a roller option (same Dw)",
-            options=list(range(len(option_labels))),
-            format_func=lambda i: option_labels[i],
-            index=0
-        )
-
-        chosen = candidates.iloc[choice_idx]
-
-        selected_dw = float(chosen['dw'])
-        selected_lw = float(chosen['lw'])
-        r_max = float(chosen['r_max'])
+        selected_dw = float(top_roller['dw'])
+        selected_lw = float(top_roller['lw'])
+        r_max = float(top_roller['r_max'])
         r = 0.75 * r_max
         Lwe = selected_lw - 2.0 * r
 
@@ -145,7 +239,7 @@ if st.session_state["proceed_clicked"]:
         i = st.number_input("🔢 Number of Roller Rows (i)", min_value=1, max_value=8, value=4)
 
         fc_df = pd.read_excel("ISO_Table_7_fc_values.xlsx")
-        fc_df.columns = fc_df.columns.str.lower()
+        fc_df = normalize_cols(fc_df)
         fc_ratio = selected_dw / pitch_dia
         fc_ratio = np.clip(fc_ratio, fc_df["dwe_cos_alpha_over_dpw"].min(), fc_df["dwe_cos_alpha_over_dpw"].max())
         fc = np.interp(fc_ratio, fc_df["dwe_cos_alpha_over_dpw"], fc_df["fc"])
