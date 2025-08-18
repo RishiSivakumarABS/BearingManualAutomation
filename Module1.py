@@ -20,15 +20,13 @@ ira_df["outer_diameter"] = pd.to_numeric(ira_df["outer_diameter"], errors="coerc
 ira_df["f"] = pd.to_numeric(ira_df["f"], errors="coerce")
 ira_df.dropna(subset=["inner_diameter", "outer_diameter", "f"], inplace=True)
 
-# Optional: SKF catalog for prefilling d, D, B (safe guard if file not present)
-catalog_df = None
+# Optional: SKF catalog for prefilling d, D, B
+catalog_df, catalog_choice = None, None
 if os.path.exists("SKFCatalog_CRB.xlsx"):
     try:
         catalog_df = pd.read_excel("SKFCatalog_CRB.xlsx")
         catalog_df.columns = catalog_df.columns.str.strip().str.lower().str.replace(" ", "_")
-        # Make flexible aliases for expected columns
-        # designation, bore diameter, outside diameter, width
-        # Try a few common variants:
+
         def first_match(cols, options):
             for opt in options:
                 if opt in cols:
@@ -40,13 +38,22 @@ if os.path.exists("SKFCatalog_CRB.xlsx"):
         col_d   = first_match(cols, ["bore_diameter", "d", "bore"])
         col_D   = first_match(cols, ["outside_diameter", "od", "outside"])
         col_B   = first_match(cols, ["width", "b"])
-        # Keep only needed columns if all found
+        # try to find catalog dynamic load rating column
+        col_C   = first_match(cols, [
+            "basic_dynamic_load_rating", "c", "cr", "dynamic_load_rating", "basic_dynamic"
+        ])
+
         if all([col_des, col_d, col_D, col_B]):
-            catalog_df = catalog_df[[col_des, col_d, col_D, col_B]].rename(
-                columns={col_des: "designation", col_d: "d", col_D: "D", col_B: "B"}
-            )
+            keep = ["designation","d","D","B"]
+            rename_map = {col_des: "designation", col_d:"d", col_D:"D", col_B:"B"}
+            if col_C: 
+                keep.append(col_C)
+                rename_map[col_C] = "C_catalog"
+            catalog_df = catalog_df[[col_des, col_d, col_D, col_B] + ([col_C] if col_C else [])].rename(columns=rename_map)
             for c in ["d", "D", "B"]:
                 catalog_df[c] = pd.to_numeric(catalog_df[c], errors="coerce")
+            if "C_catalog" in catalog_df.columns:
+                catalog_df["C_catalog"] = pd.to_numeric(catalog_df["C_catalog"], errors="coerce")
             catalog_df.dropna(subset=["d", "D", "B"], inplace=True)
         else:
             catalog_df = None
@@ -75,6 +82,7 @@ if catalog_df is not None and not catalog_df.empty:
         if pick != "— none —":
             row = catalog_df.loc[catalog_df["designation"] == pick].iloc[0]
             prefill = {"d": float(row["d"]), "D": float(row["D"]), "B": float(row["B"])}
+            catalog_choice = pick  # remember choice
 else:
     st.caption("Catalog prefill: *SKFCatalog_CRB.xlsx* not found (optional).")
 
@@ -235,3 +243,16 @@ if st.session_state["proceed_clicked"]:
 
         st.success(f"**Cr = {Cr:,.2f} N**")
         st.success(f"**Cor = {Cor:,.2f} N**")
+
+        # ---------- Catalog C (Cr) readout ----------
+        if catalog_choice and (catalog_df is not None):
+            row = catalog_df.loc[catalog_df["designation"] == catalog_choice].iloc[0]
+            if "C_catalog" in row and pd.notna(row["C_catalog"]):
+                # Most catalogs list C in kN. If the value is "reasonable" (< 1e4), convert kN → N.
+                C_val = float(row["C_catalog"])
+                C_N = C_val * 1000.0 if C_val < 1e4 else C_val
+                st.info(f"Catalog C (Cr) for **{catalog_choice}**: **{C_N:,.0f} N**")
+            else:
+                st.info(f"Catalog C (Cr): not provided in file for **{catalog_choice}**.")
+        else:
+            st.info("Catalog C (Cr): **Not from catalog**")
